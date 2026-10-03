@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+data
+dist
+docs
+tests
+test-results
+playwright-report
+.env*
+fonts/*.ttf
+fonts/*.otf
+fonts/*.woff*
+*.tsbuildinfo
+__pycache__

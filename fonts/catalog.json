@@ -1,0 +1,66 @@
+[
+  {
+    "id": "tyz-kai",
+    "name": "田英章楷书",
+    "style": "楷书",
+    "file": "田英章楷书.ttf",
+    "sha256": "c1728f3a9672ad7d948b201d17c513333663b462d1a267ab1f3ac8cb311b98ae",
+    "repair": "vhea-version"
+  },
+  {
+    "id": "tyz-xing",
+    "name": "田英章行书",
+    "style": "行书",
+    "file": "田英章行书.ttf",
+    "sha256": "0c8c16ddd2ce74b290566dec336c2a7230e2c635e2afae6814fca890db7316a1",
+    "repair": "vertical-count"
+  },
+  {
+    "id": "zqp-kai",
+    "name": "瑞美加张清平硬笔楷书",
+    "style": "楷书",
+    "file": "瑞美加张清平硬笔楷书.ttf",
+    "sha256": "38e6473bcbe4e3d2dba2218eb7235b4b5f7f3f080d75528f8e4d1fc8bc1c4a10",
+    "repair": "none"
+  },
+  {
+    "id": "zqp-xing",
+    "name": "瑞美加张清平硬笔行书",
+    "style": "行书",
+    "file": "瑞美加张清平硬笔行书.ttf",
+    "sha256": "c60f812d81b7d78d43f302a0901bcae9054aedb3a3e7635306d76cf96af91524",
+    "repair": "none"
+  },
+  {
+    "id": "smy-xing",
+    "name": "司马彦行书",
+    "style": "行书",
+    "file": "司马彦行书.ttf",
+    "sha256": "c008f2f03d914dbedcbc1e563be9cfb51f6b4096786a3d5ebe94d7cf6ab24fc8",
+    "repair": "none"
+  },
+  {
+    "id": "gza-xing",
+    "name": "顾仲安行书",
+    "style": "行书",
+    "file": "顾仲安行书.ttf",
+    "sha256": "1fe666f07dfcf62fc00e90385a890b26c201d5e0d0b161292455e50319c88913",
+    "repair": "post-alignment"
+  },
+  {
+    "id": "wys-xingkai",
+    "name": "吴玉生行楷",
+    "style": "行楷",
+    "file": "吴玉生行楷.ttf",
+    "sha256": "3ca846f855b09508929a97bb4e9e6ffbc6711ad774c9b49375579b2a2d5e60e4",
+    "repair": "none"
+  },
+  {
+    "id": "jxp-xingkai",
+    "name": "荆霄鹏行楷",
+    "style": "行楷",
+    "file": "荆霄鹏行楷.ttf",
+    "sha256": "104e65d4b5a9bfc164327c0ecfa860afbc00ea1798af02567eb0f50b5eda28a2",
+    "repair": "drop-vertical"
+  }
+]

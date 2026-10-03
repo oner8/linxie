@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+data/
+dist/
+docs/
+deploy/INSTALL.md
+test-results/
+playwright-report/
+*.tsbuildinfo
+.env*
+!.env.example
+fonts/*.ttf
+fonts/*.otf
+fonts/*.woff*
+__pycache__/
+.venv/
