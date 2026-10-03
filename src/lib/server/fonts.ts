@@ -1,13 +1,15 @@
 import { createHash, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { access, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { access, lstat, mkdir, mkdtemp, open, readFile, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { create } from "fontkit";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { isIP } from "node:net";
 import { parseCodepoints, type PublicFont } from "../practice";
 
-type FontResource = PublicFont & { file: string; coverage: string };
+type FontResource = PublicFont & { file: string; coverage: string; sourceSha256?: string; raw?: boolean };
 const fontDir = resolve(/* turbopackIgnore: true */ process.env.FONT_DATA_DIR || "data/fonts");
 const cacheDir = resolve(/* turbopackIgnore: true */ process.env.FONT_CACHE_DIR || "data/cache");
 const execute = promisify(execFile);
@@ -17,20 +19,85 @@ const pending = new Map<string, Promise<{ bytes: Buffer; hit: boolean }>>();
 let busy = false;
 let initialized: Promise<void> | undefined;
 let manifestPromise: Promise<FontResource[]> | undefined;
+let baseHashesPromise: Promise<Set<string | undefined>> | undefined;
+const scanned = new Map<string, { signature: string; font?: FontResource }>();
+let scanPromise: Promise<FontResource[]> | undefined;
+const fileLimit = 30 * 1024 * 1024;
 
 export class FontError extends Error {
   constructor(public status: number, message: string, public retryAfter?: number) { super(message); }
 }
 
-export function publicFonts(): Promise<PublicFont[]> {
+function baseFonts(): Promise<FontResource[]> {
   manifestPromise ??= readFile(join(/* turbopackIgnore: true */ fontDir, "manifest.json"), "utf8").then(JSON.parse).catch(error => { manifestPromise = undefined; throw error; });
-  return manifestPromise!.then(fonts => fonts.map(({ id, name, style, version }) => ({ id, name, style, version })));
+  return manifestPromise;
+}
+
+async function rawBytes(file: string): Promise<Buffer> {
+  const handle = await open(join(/* turbopackIgnore: true */ fontDir, file), constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const info = await handle.stat();
+    if (!info.isFile() || !info.size || info.size > fileLimit) throw new Error("Invalid font file size");
+    return await handle.readFile();
+  } finally { await handle.close(); }
+}
+
+async function scanFonts(): Promise<FontResource[]> {
+  const base = await baseFonts();
+  const files = (await readdir(/* turbopackIgnore: true */ fontDir, { withFileTypes: true }))
+    .filter(entry => entry.isFile() && /\.(ttf|otf)$/i.test(entry.name) && !base.some(font => font.file === entry.name))
+    .map(entry => entry.name).sort();
+  for (const file of scanned.keys()) if (!files.includes(file)) scanned.delete(file);
+  const fonts = [...base];
+  if (files.length) baseHashesPromise ??= Promise.all(base.map(async font => createHash("sha256").update(await readFile(join(/* turbopackIgnore: true */ fontDir, font.file))).digest("hex")))
+    .then(hashes => new Set([...hashes, ...base.map(font => font.sourceSha256)]))
+    .catch(error => { baseHashesPromise = undefined; throw error; });
+  const hashes = new Set(files.length ? await baseHashesPromise : []);
+  for (const file of files) {
+    try {
+      const info = await lstat(join(/* turbopackIgnore: true */ fontDir, file));
+      const signature = `${info.size}/${info.mtimeMs}/${info.ctimeMs}`;
+      let entry = scanned.get(file);
+      if (entry?.signature !== signature) {
+        entry = { signature }; scanned.set(file, entry);
+        if (!info.isFile() || !info.size || info.size > fileLimit) throw new Error("Invalid font file size");
+        const bytes = await rawBytes(file);
+        if (![0x00010000, 0x4f54544f].includes(bytes.readUInt32BE(0))) throw new Error("Expected static TTF or OTF");
+        for (let i = 0; i < bytes.readUInt16BE(4); i++) {
+          if (bytes.toString("ascii", 12 + i * 16, 16 + i * 16) === "fvar") throw new Error("Expected static font");
+        }
+        const parsed = create(bytes);
+        if (!("glyphForCodePoint" in parsed) || Object.keys(parsed.variationAxes || {}).length) throw new Error("Expected static font");
+        const coverage = parsed.characterSet.filter(cp => {
+          const glyph = parsed.glyphForCodePoint(cp);
+          return cp <= 0x10ffff && glyph.id !== 0 && glyph.path.commands.length > 0;
+        }).map(cp => String.fromCodePoint(cp)).join("");
+        const hash = createHash("sha256").update(bytes).digest("hex");
+        const name = file.replace(/\.(ttf|otf)$/i, "");
+        entry.font = { id: `extra-${hash.slice(0, 32)}`, version: hash.slice(0, 24), name,
+          style: ["行楷", "楷书", "行书"].find(style => name.includes(style)) || "其他", file, coverage, sourceSha256: hash, raw: true };
+      }
+      if (entry.font && !hashes.has(entry.font.sourceSha256)) {
+        fonts.push(entry.font); hashes.add(entry.font.sourceSha256);
+      }
+    } catch (error) { console.warn(JSON.stringify({ event: "font_scan_skipped", file, reason: error instanceof Error ? error.message : "Invalid font" })); }
+  }
+  return fonts;
+}
+
+function availableFonts(): Promise<FontResource[]> {
+  scanPromise ??= scanFonts().finally(() => { scanPromise = undefined; });
+  return scanPromise;
+}
+
+export async function publicFonts(): Promise<PublicFont[]> {
+  return (await availableFonts()).map(({ id, name, style, version }) => ({ id, name, style, version }));
 }
 
 export async function health(): Promise<void> {
-  const fonts = await publicFonts();
-  if (fonts.length !== 8) throw new Error("Incomplete resources");
-  await Promise.all(fonts.map(f => access(join(/* turbopackIgnore: true */ fontDir, `${f.id}.${f.version}.ttf`))));
+  const fonts = await baseFonts();
+  if (!fonts.length) throw new Error("Incomplete resources");
+  await Promise.all(fonts.flatMap(f => [access(join(/* turbopackIgnore: true */ fontDir, f.file)), access(join(/* turbopackIgnore: true */ fontDir, `${f.id}.${f.version}.json`))]));
 }
 
 async function trimCache() {
@@ -61,7 +128,10 @@ async function initCache() {
 }
 
 async function resource(id: string, version: string): Promise<FontResource> {
-  if (!/^[a-z0-9-]{1,40}$/.test(id) || !/^[a-f0-9]{24}$/.test(version) || !(await publicFonts()).some(f => f.id === id)) throw new FontError(404, "字体版本不存在，请刷新字体列表");
+  if (!/^[a-z0-9-]{1,40}$/.test(id) || !/^[a-f0-9]{24}$/.test(version)) throw new FontError(404, "字体版本不存在，请刷新字体列表");
+  const selected = (await availableFonts()).find(f => f.id === id && f.version === version);
+  if (!selected) throw new FontError(404, "字体版本不存在，请刷新字体列表");
+  if (selected.raw) return selected;
   try {
     const font: FontResource = JSON.parse(await readFile(join(/* turbopackIgnore: true */ fontDir, `${id}.${version}.json`), "utf8"));
     if (font.id !== id || font.version !== version || font.file !== `${id}.${version}.ttf` || typeof font.coverage !== "string") throw new Error("Invalid manifest");
@@ -73,8 +143,15 @@ async function generate(font: FontResource, key: string, codepoints: string) {
   const temp = await mkdtemp(join(tmpdir(), "linxie-"));
   try {
     const output = join(temp, "subset.woff2");
+    let source = join(/* turbopackIgnore: true */ fontDir, font.file);
+    if (font.raw) {
+      const bytes = await rawBytes(font.file).catch(() => { throw new FontError(404, "字体版本不存在，请刷新字体列表"); });
+      if (createHash("sha256").update(bytes).digest("hex") !== font.sourceSha256) throw new FontError(404, "字体版本不存在，请刷新字体列表");
+      source = join(temp, "source" + (/\.otf$/i.test(font.file) ? ".otf" : ".ttf"));
+      await writeFile(source, bytes);
+    }
     try {
-      await execute(process.env.PYTHON_BIN || "python3", [resolve("scripts/subset_font.py"), join(/* turbopackIgnore: true */ fontDir, font.file), output, codepoints.replaceAll("-", ",")], { timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 1024 * 1024 });
+      await execute(process.env.PYTHON_BIN || "python3", [resolve("scripts/subset_font.py"), source, output, codepoints.replaceAll("-", ",")], { timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 1024 * 1024 });
     } catch (error) {
       if ((error as { killed?: boolean }).killed) throw new FontError(503, "字体处理超时，请稍后重试", 2);
       throw new FontError(500, "字体处理失败，请重试或更换字体");

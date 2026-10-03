@@ -43,6 +43,8 @@
   --grid-line: #c9c3b9;
   --radius: 1rem;
   --app-height: 100dvh;
+  --viewport-top: 0px;
+  --drawer-bottom: 0px;
 }
 
 @layer base {
@@ -116,11 +118,11 @@
 .is-focused .loading-caption { display: none; }
 .wake-status { color: var(--primary); justify-content: center; align-items: center; gap: 6px; font-size: 11px; display: flex; }
 .wake-status svg { width: 14px; height: 14px; }
-.has-panel { height: calc(var(--app-height) - var(--panel-height, var(--app-height) * .6)); gap: 0; min-height: 130px; }
+.has-panel { height: calc(var(--app-height) - var(--panel-height, var(--app-height) * .6)); gap: 0; min-height: 0; position: relative; top: var(--viewport-top); }
 .has-panel .app-header { min-height: 50px; }
 .has-panel .practice-area { gap: 0; padding: 0 0 12px; }
 .has-panel .loading-caption { font-size: 10px; }
-.practice-drawer[data-slot=drawer-content] { width: 100%; max-width: 580px; height: auto; max-height: calc(var(--app-height) * .6); padding-bottom: env(safe-area-inset-bottom); border-radius: 24px 24px 0 0; margin: 0 auto; }
+.practice-drawer[data-slot=drawer-content] { width: 100%; max-width: 580px; height: auto; max-height: calc(var(--app-height) * .6); bottom: var(--drawer-bottom); padding-bottom: env(safe-area-inset-bottom); border-radius: 24px 24px 0 0; margin: 0 auto; }
 .practice-drawer[data-panel=settings] { max-height: min(calc(var(--app-height) * .78), calc(var(--app-height) - 150px)); }
 .practice-drawer [data-slot=drawer-header] { text-align: left; flex-shrink: 0; padding: 8px 22px 14px; }
 .practice-drawer [data-slot=drawer-title] { font-size: 21px; font-weight: 600; }

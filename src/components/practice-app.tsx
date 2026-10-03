@@ -170,9 +170,17 @@ export function PracticeApp() {
     return () => clearTimeout(timer);
   }, [cooldown]);
   useEffect(() => {
-    const update = () => document.documentElement.style.setProperty("--app-height", `${window.visualViewport?.height || window.innerHeight}px`);
-    update(); window.visualViewport?.addEventListener("resize", update); window.addEventListener("resize", update);
-    return () => { window.visualViewport?.removeEventListener("resize", update); window.removeEventListener("resize", update); };
+    const viewport = window.visualViewport;
+    const update = () => {
+      const height = viewport?.height || window.innerHeight;
+      const top = viewport?.offsetTop || 0;
+      const root = document.documentElement;
+      root.style.setProperty("--app-height", `${height}px`);
+      root.style.setProperty("--viewport-top", `${top}px`);
+      root.style.setProperty("--drawer-bottom", `${Math.max(0, window.innerHeight - height - top)}px`);
+    };
+    update(); viewport?.addEventListener("resize", update); viewport?.addEventListener("scroll", update); window.addEventListener("resize", update);
+    return () => { viewport?.removeEventListener("resize", update); viewport?.removeEventListener("scroll", update); window.removeEventListener("resize", update); };
   }, []);
   useEffect(() => {
     const escape = (e: KeyboardEvent) => { if (e.key === "Escape" && !panel) setFocus(false); };
@@ -293,12 +301,12 @@ export function PracticeApp() {
     </main>
 
     <Drawer open={!!panel} onOpenChange={open => !open && closePanel()} shouldScaleBackground={false} repositionInputs={false} autoFocus>
-      <DrawerContent ref={measureDrawer} className="practice-drawer" data-panel={panel || undefined} aria-describedby={undefined} onOpenAutoFocus={e => { if (panel === "text") { e.preventDefault(); input.current?.focus(); input.current?.select(); } }} onCloseAutoFocus={e => { e.preventDefault(); trigger.current?.focus(); }}>
+      <DrawerContent ref={measureDrawer} className="practice-drawer" data-panel={panel || undefined} aria-describedby={undefined} onOpenAutoFocus={e => { if (panel === "text") { e.preventDefault(); input.current?.focus({ preventScroll: true }); input.current?.select(); } }} onCloseAutoFocus={e => { e.preventDefault(); trigger.current?.focus(); }}>
         <DrawerHeader><div className="panel-title-row"><DrawerTitle>{panel ? TITLES[panel] : "临写设置"}</DrawerTitle><Button variant="ghost" onClick={() => panel === "text" ? void submitText() : closePanel()} disabled={panel === "text" && (!!draftError || !draft.trim() || composing || !!loading || cooldown > 0)}>完成</Button></div></DrawerHeader>
         <div className="panel-scroll" data-vaul-no-drag>
           <div className="feedback-stack">{feedback}</div>
           {panel === "text" && <form onSubmit={e => { e.preventDefault(); void submitText(); }}><FieldGroup className="text-fields"><Field data-invalid={!!draftError}><FieldLabel htmlFor="practice-input">练习的汉字</FieldLabel><Input ref={input} id="practice-input" className="practice-input" value={draft} placeholder="例如：永和安" autoComplete="off" spellCheck={false} aria-invalid={!!draftError} aria-describedby={draftError ? "input-error" : "input-description"} onChange={e => setDraft(e.target.value)} onCompositionStart={() => setComposing(true)} onCompositionEnd={e => { setDraft(e.currentTarget.value); setComposing(false); }} onKeyDown={e => { if (e.key === "Enter" && (composing || e.nativeEvent.isComposing)) e.preventDefault(); }} /><div className="input-meta"><FieldDescription id="input-description">输入 1–3 个汉字</FieldDescription><span>{[...draft.trim()].length} / 3</span></div>{draftError && <FieldError id="input-error">{draftError}</FieldError>}</Field><div className="text-actions"><Button type="button" variant="outline" onClick={closePanel}>取消编辑</Button><Button type="submit" disabled={!!draftError || !draft.trim() || composing || !!loading || cooldown > 0}>{loading && <LoaderCircle className="spin" data-icon="inline-start" />}开始临写</Button></div></FieldGroup></form>}
-          {panel === "fonts" && <Tabs value={fontTab} onValueChange={setFontTab}><TabsList className="w-full"><TabsTrigger value="builtin">内置字体 · 8</TabsTrigger><TabsTrigger value="local">本机字体</TabsTrigger></TabsList><TabsContent value="builtin"><div className="font-list">{fonts.map(font => <Button key={font.id} variant={settings.fontId === font.id ? "secondary" : "ghost"} aria-pressed={settings.fontId === font.id} className="font-option" aria-label={font.name} onClick={() => { if (!cooldown) void load(font, settings.text); }} disabled={cooldown > 0}><FontLabel name={font.name} style={font.style} />{loading?.name === font.name ? <LoaderCircle className="spin" /> : settings.fontId === font.id ? <Check /> : null}</Button>)}</div></TabsContent><TabsContent value="local">
+          {panel === "fonts" && <Tabs value={fontTab} onValueChange={setFontTab}><TabsList className="w-full"><TabsTrigger value="builtin">内置字体 · {fonts.length}</TabsTrigger><TabsTrigger value="local">本机字体</TabsTrigger></TabsList><TabsContent value="builtin"><div className="font-list">{fonts.map(font => <Button key={font.id} variant={settings.fontId === font.id ? "secondary" : "ghost"} aria-pressed={settings.fontId === font.id} className="font-option" aria-label={font.name} onClick={() => { if (!cooldown) void load(font, settings.text); }} disabled={cooldown > 0}><FontLabel name={font.name} style={font.style} />{loading?.name === font.name ? <LoaderCircle className="spin" /> : settings.fontId === font.id ? <Check /> : null}</Button>)}</div></TabsContent><TabsContent value="local">
             <div className="font-list">{localFonts.map(font => <div className="local-font-row" key={font.id}><Button variant={settings.fontId === font.id ? "secondary" : "ghost"} aria-pressed={settings.fontId === font.id} className="font-option" aria-label={font.name} onClick={() => void load(font, settings.text)}><span className="min-w-0"><FontLabel name={font.name} /><small>{(font.size / 1024 / 1024).toFixed(1)} MiB · {font.saved ? "已保存在本机" : "本次临时使用"}</small></span>{settings.fontId === font.id && <Check />}</Button><AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" aria-label={`删除${font.name}`}><Trash2 /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>删除这款本机字体？</AlertDialogTitle><AlertDialogDescription>从当前浏览器移除「{font.name}」。如果正在使用，将先切换到田英章楷书；原始文件不会被删除。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>保留</AlertDialogCancel><AlertDialogAction onClick={() => void removeFont(font)}>删除字体</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div>)}</div>
             {!localFonts.length && <p className="local-empty">把你喜欢的字体带进来。<br />导入后，仅在这台设备上使用。</p>}
             <Button variant="outline" className="w-full" disabled={importing} onClick={() => fileInput.current?.click()}><Upload data-icon="inline-start" />{importing ? "正在读取字体…" : "导入字体文件"}</Button>
