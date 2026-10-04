@@ -74,39 +74,11 @@ docker compose -f docker-compose.yaml up -d --wait
 
 已有 `.env` 部署需把 `LINXIE_IMAGE`、`LINXIE_PORT`、`LINXIE_FONT_DIR` 和 `LINXIE_CACHE_DIR` 的实际值填入上述 YAML 字段。源码根目录的本地 `compose.yaml` 仍支持这些 `LINXIE_*` 覆盖，可参考 `.env.example`。
 
-如需自己构建，在源码根目录执行以下命令，并将部署 YAML 的 `image` 改为 `linxie:0.1.2`；使用本地镜像时跳过更新流程中的 `pull`：
+如需自己构建，在源码根目录执行以下命令，并将部署 YAML 的 `image` 改为 `linxie:0.1.2`：
 
 ```sh
 docker build -t linxie:0.1.2 .
 ```
-
-### 缓存权限与验证
-
-容器入口以 root 初始化缓存目录本身的所有者为 `1000:1000`，并确保所有者可读、可写、可遍历，随后通过 `setpriv` 降权为 `node` 并启用 `no-new-privileges`。若在 Compose 中覆盖为非 root 用户，入口只检查缓存可写，不修改所有者；需预先确保该用户有写权限。初始化失败会明确报错并停止启动。
-
-默认 `docker exec` 使用 root，检查应用权限时须显式指定 `1000:1000`：
-
-```sh
-cd /srv/linxie
-docker compose -f docker-compose.yaml exec --user 1000:1000 app sh -c 'id; ls -ld "$FONT_CACHE_DIR"; test -w "$FONT_CACHE_DIR"'
-docker compose -f docker-compose.yaml logs --tail 50 app
-```
-
-找不到配置文件时进入部署目录，或在 `-f` 后填写绝对路径。缓存初始化报错或出现 `font_cache_write_failed` 时，核对挂载路径、写权限、SELinux 标签和磁盘空间。`/api/health` 和容器 `healthy` 只验证基础字体资源，不测试缓存写入。
-
-第一次生成某款字体、某组汉字时，日志 `hit:false` 和响应头 `X-Font-Cache: MISS` 是正常的，生成后应有缓存文件。相同字体 ID、版本及汉字请求再次到达服务器时，应为 `hit:true` / `X-Font-Cache: HIT`；浏览器直接使用自身缓存时不会产生新的服务端日志。重启容器后缓存仍应保留。
-
-### 更新与回退
-
-更新前记录旧镜像标签并备份部署 YAML 和字体清单。将 YAML 的 `image` 改为需要的 GHCR 发布标签后执行：
-
-```sh
-cd /srv/linxie
-docker compose -f docker-compose.yaml pull
-docker compose -f docker-compose.yaml up -d --force-recreate --wait
-```
-
-更改镜像、端口或挂载目录后，也要使用 `up -d --force-recreate --wait` 重新创建容器；`restart` 不会应用这些修改。回退时恢复旧镜像标签和必要的字体清单，执行相同更新命令，并验证健康与缓存；无需删除字体或清空缓存。
 
 ### 运行时增加字体
 
