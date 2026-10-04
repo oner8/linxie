@@ -2,24 +2,16 @@ name: linxie
 
 services:
   app:
-    image: ${LINXIE_IMAGE:-linxie:0.1.1}
+    image: ${LINXIE_IMAGE:-linxie:0.1.2}
     restart: unless-stopped
     init: true
     ports:
       - "127.0.0.1:${LINXIE_PORT:-3100}:3000"
     environment:
       TRUST_PROXY: "1"
-      FONT_DATA_DIR: /app/data/fonts
-      FONT_CACHE_DIR: /app/data/cache
     volumes:
       - ${LINXIE_FONT_DIR:-./data/fonts}:/app/data/fonts:ro,Z
       - ${LINXIE_CACHE_DIR:-./data/cache}:/app/data/cache:Z
-    tmpfs:
-      - /tmp:size=128m,mode=1777
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     logging:
       driver: json-file
       options:

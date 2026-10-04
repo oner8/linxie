@@ -20,8 +20,10 @@ COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --chown=node:node scripts ./scripts
 COPY --chown=node:node fonts/catalog.json ./fonts/catalog.json
-RUN mkdir -p data/fonts data/cache && chown -R node:node data .next
-USER node
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/linxie-entrypoint.sh
+RUN mkdir -p data/fonts data/cache && chown -R node:node data .next && command -v setpriv
+USER root
+ENTRYPOINT ["/usr/local/bin/linxie-entrypoint.sh"]
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
