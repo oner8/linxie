@@ -21,16 +21,17 @@
 ## 本地开发
 
 需要 Node.js 24、npm 和 Python 3.10+。
+先向维护者领取 `linxie-fonts-0.1.2.tar.gz`，放到仓库根目录并解压：
 
 ```sh
+tar -xzf linxie-fonts-0.1.2.tar.gz -C .
 npm ci
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python scripts/prepare_fonts.py
 PYTHON_BIN="$PWD/.venv/bin/python" npm run dev
 ```
 
-字体原件不在仓库中。将 `fonts/catalog.json` 所列文件放入 `fonts/` 后运行准备脚本；脚本会校验文件指纹并将处理结果写入 `data/fonts/`。
+字体原件不在仓库中。若持有 `fonts/catalog.json` 所列原件，也可将其放入 `fonts/`，运行 `.venv/bin/python scripts/prepare_fonts.py` 生成 `data/fonts/`。
 
 ## 验证
 
@@ -48,7 +49,14 @@ BASE_URL=http://127.0.0.1:3000 npm run test:e2e
 
 ### 首次部署
 
-将仓库中的 `docker-compose.yaml` 放入部署目录，把准备脚本生成的 `data/fonts/` 内容复制到该目录下的 `data/fonts/`。镜像不包含字体；资源必须包括 `manifest.json`、各字体的 `.json` 和 `.ttf`，不能只放字体原件。
+克隆仓库后，向维护者私下领取 `linxie-fonts-0.1.2.tar.gz`，放到包含 `docker-compose.yaml` 的部署目录并解压：
+
+```sh
+cd /srv/linxie
+tar -xzf linxie-fonts-0.1.2.tar.gz -C .
+```
+
+解压后得到 `data/fonts/`，内含 `manifest.json` 和八组 `.json`、`.ttf`。字体包不在 GitHub 或 GHCR 中；镜像不包含字体。若修改字体挂载路径，请将宿主机路径指向解压出的 `data/fonts/`。
 
 按实际情况直接修改 `docker-compose.yaml` 中的镜像、宿主机端口和两条挂载的宿主机目录，默认如下：
 
