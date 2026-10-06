@@ -72,7 +72,7 @@ docker compose -f docker-compose.yaml up -d --wait
 
 端口默认只监听 `127.0.0.1`，通过 HTTPS 反向代理访问。更改宿主机端口后同步修改反向代理端口；宝塔配置示例见 `deploy/nginx-location.conf`，反代应覆盖 `X-Real-IP`，与 `TRUST_PROXY=1` 配合。
 
-已有 `.env` 部署需把 `LINXIE_IMAGE`、`LINXIE_PORT`、`LINXIE_FONT_DIR` 和 `LINXIE_CACHE_DIR` 的实际值填入上述 YAML 字段。源码根目录的本地 `compose.yaml` 仍支持这些 `LINXIE_*` 覆盖，可参考 `.env.example`。
+已有 `.env` 部署会沿用 `LINXIE_FONT_DIR` 和 `LINXIE_CACHE_DIR`；镜像和宿主机端口以 YAML 为准。源码根目录的本地 `compose.yaml` 仍支持全部 `LINXIE_*` 覆盖，可参考 `.env.example`。
 
 如需自己构建，在源码根目录执行以下命令，并将部署 YAML 的 `image` 改为 `linxie:0.1.2`：
 

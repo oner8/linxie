@@ -12,8 +12,8 @@ services:
     environment:
       TRUST_PROXY: "1"
     volumes:
-      - ./data/fonts:/app/data/fonts:ro,Z
-      - ./data/cache:/app/data/cache:Z
+      - ${LINXIE_FONT_DIR:-./data/fonts}:/app/data/fonts:ro,Z
+      - ${LINXIE_CACHE_DIR:-./data/cache}:/app/data/cache:Z
     logging:
       driver: json-file
       options:
