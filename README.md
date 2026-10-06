@@ -36,12 +36,10 @@ PYTHON_BIN="$PWD/.venv/bin/python" npm run dev
 ## 验证
 
 ```sh
-PYTHON_BIN="$PWD/.venv/bin/python" npm test
 npm run build
-BASE_URL=http://127.0.0.1:3000 npm run test:e2e
 ```
 
-浏览器测试前需要安装 Chromium 并启动生产或开发服务。
+测试文件由维护者在本地保管，不随仓库发布。
 
 ## Docker
 
