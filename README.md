@@ -44,7 +44,7 @@ BASE_URL=http://127.0.0.1:3000 npm run test:e2e
 
 ## Docker
 
-当前发布镜像为 `ghcr.io/oner8/linxie:0.1.2`，平台为 `linux/amd64`。下面以宿主机 `/srv/linxie/` 为部署目录，使用 Docker Compose v2。
+部署示例使用 `ghcr.io/oner8/linxie:latest`，平台为 `linux/amd64`。下面以宿主机 `/srv/linxie/` 为部署目录，使用 Docker Compose v2。
 
 ### 首次部署
 
@@ -53,7 +53,7 @@ BASE_URL=http://127.0.0.1:3000 npm run test:e2e
 按实际情况直接修改 `docker-compose.yaml` 中的镜像、宿主机端口和两条挂载的宿主机目录，默认如下：
 
 ```yaml
-image: ghcr.io/oner8/linxie:0.1.2
+image: ghcr.io/oner8/linxie:latest
 ports:
   - "127.0.0.1:3100:3000"
 volumes:

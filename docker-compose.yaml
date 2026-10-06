@@ -4,7 +4,7 @@ name: linxie
 
 services:
   app:
-    image: ghcr.io/oner8/linxie:0.1.2
+    image: ghcr.io/oner8/linxie:latest
     restart: unless-stopped
     init: true
     ports:
