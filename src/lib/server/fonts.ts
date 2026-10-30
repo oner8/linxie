@@ -16,7 +16,10 @@ const execute = promisify(execFile);
 const limits = { bytes: 512 * 1024 * 1024, files: 20_000 };
 const cached = new Map<string, { size: number; created: number }>();
 const pending = new Map<string, Promise<{ bytes: Buffer; hit: boolean }>>();
-let busy = false;
+// Manifest JSON is named by content hash and never changes; parse each version once.
+const resources = new Map<string, FontResource>();
+let queue: Promise<unknown> = Promise.resolve();
+let waiting = 0;
 let initialized: Promise<void> | undefined;
 let manifestPromise: Promise<FontResource[]> | undefined;
 let baseHashesPromise: Promise<Set<string | undefined>> | undefined;
@@ -132,9 +135,12 @@ async function resource(id: string, version: string): Promise<FontResource> {
   const selected = (await availableFonts()).find(f => f.id === id && f.version === version);
   if (!selected) throw new FontError(404, "字体版本不存在，请刷新字体列表");
   if (selected.raw) return selected;
+  const known = resources.get(`${id}/${version}`);
+  if (known) return known;
   try {
     const font: FontResource = JSON.parse(await readFile(join(/* turbopackIgnore: true */ fontDir, `${id}.${version}.json`), "utf8"));
     if (font.id !== id || font.version !== version || font.file !== `${id}.${version}.ttf` || typeof font.coverage !== "string") throw new Error("Invalid manifest");
+    resources.set(`${id}/${version}`, font);
     return font;
   } catch { throw new FontError(404, "字体版本不存在，请刷新字体列表"); }
 }
@@ -186,10 +192,12 @@ export async function fontSubset(id: string, version: string, codepoints: string
   } catch { /* Cache misses can be regenerated. */ }
   const running = pending.get(key);
   if (running) return running;
+  // One Python worker per Node process, so requests wait their turn instead of failing.
   // ponytail: one worker per Node process; use a job service only if single-instance capacity is exhausted.
-  if (busy) throw new FontError(503, "字体正在处理中，请稍后重试", 1);
-  busy = true;
-  const task = generate(font, key, codepoints).finally(() => { busy = false; pending.delete(key); });
+  if (waiting >= 8) throw new FontError(503, "字体正在处理中，请稍后重试", 2);
+  waiting++;
+  const task = queue.then(() => generate(font, key, codepoints)).finally(() => { waiting--; pending.delete(key); });
+  queue = task.catch(() => undefined);
   pending.set(key, task);
   return task;
 }

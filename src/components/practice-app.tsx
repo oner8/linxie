@@ -149,8 +149,14 @@ export function PracticeApp() {
 
   useEffect(() => {
     if (!ready) return;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); }
-    catch { setNotice("当前设置可用，但浏览器无法保存；刷新后可能需要重新设置"); }
+    const save = () => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); }
+      catch { setNotice("当前设置可用，但浏览器无法保存；刷新后可能需要重新设置"); }
+    };
+    // Sliders fire on every step; write once the value settles, and never lose it on unload.
+    const timer = setTimeout(save, 300);
+    window.addEventListener("pagehide", save);
+    return () => { clearTimeout(timer); window.removeEventListener("pagehide", save); };
   }, [ready, settings]);
   useEffect(() => {
     const theme = THEMES.find(t => t.id === settings.theme) || THEMES[0];

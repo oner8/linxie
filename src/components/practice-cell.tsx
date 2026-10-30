@@ -14,10 +14,13 @@ export function GridLines({ grid, opacity = 0.45, color = "var(--grid-line)" }: 
   </g>;
 }
 
+let measurer: CanvasRenderingContext2D | null = null;
+
 export function PracticeCell({ char, family, size, opacity, grid, lineColor, textColor, hideCharacter }: { char?: string; family?: string; size: number; opacity: number; grid: GridId; lineColor: string; textColor: string; hideCharacter?: boolean }) {
   const metrics = useMemo(() => {
     if (!family || !char || typeof document === "undefined") return null;
-    const context = document.createElement("canvas").getContext("2d")!;
+    // One canvas for the whole page: browsers cap how many can exist.
+    const context = (measurer ??= document.createElement("canvas").getContext("2d")!);
     context.font = `1000px "${family}"`;
     context.textRendering = "geometricPrecision";
     return context.measureText(char);
