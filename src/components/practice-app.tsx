@@ -282,6 +282,11 @@ export function PracticeApp() {
     setVideoRun(0); setVideoState({ phase: "idle" });
   };
   const step = (direction: number) => setIndex(i => Math.max(0, Math.min(chars.length - 1, i + direction)));
+  const choose = (i: number) => {
+    setIndex(i);
+    // Picking a character from the header means looking at that one cell, even in overview.
+    if (settings.view === "all") setSettings(s => ({ ...s, view: "single" }));
+  };
   let draftError = "";
   if (!composing && draft) { try { validateText(draft); } catch (e) { draftError = (e as Error).message; } }
   const feedback = <>
@@ -297,7 +302,7 @@ export function PracticeApp() {
       </header>
       {!focus && !panel && <>
         <section className="writing-entry" aria-label="练习内容">
-          <p className="entry-text">{[...settings.text].map((char, i) => <span key={i} className={cn("entry-char", i === activeIndex && "is-active")}>{char}</span>)}</p>
+          <div className="entry-text">{[...settings.text].map((char, i) => <button key={i} type="button" className={cn("entry-char", i === activeIndex && "is-active")} aria-label={`查看第 ${i + 1} 字：${char}`} aria-current={i === activeIndex || undefined} onClick={() => choose(i)}>{char}</button>)}</div>
           <Button variant="ghost" onClick={e => openPanel("text", e.currentTarget)} disabled={!ready}><PencilLine data-icon="inline-start" />编辑</Button>
         </section>
         <div className="view-switch"><ToggleGroup type="single" value={settings.view} onValueChange={value => value && setSettings(s => ({ ...s, view: value as Settings["view"] }))} aria-label="展示方式" spacing={0}><ToggleGroupItem value="single" aria-label="逐字放大">逐字</ToggleGroupItem><ToggleGroupItem value="all" aria-label="全部展示">全览</ToggleGroupItem></ToggleGroup></div>

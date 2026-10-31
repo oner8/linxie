@@ -8,16 +8,19 @@ export type VideoState = { phase: "idle" | "loading" | "playing" | "complete" | 
 // The recordings are wide shots whose writing cell sits at a known spot. Enlarge that
 // square until it covers the cell, so the character fills the practice grid.
 function applyCrop(video: HTMLVideoElement, host: HTMLElement, [cx, cy, half]: [number, number, number]) {
-  const side = host.clientWidth;
+  // Always a square: a wide stage must not stretch the video into 16:9.
+  const side = Math.min(host.clientWidth, host.clientHeight);
   const width = video.videoWidth, height = video.videoHeight;
-  if (!side || !width || !height) return;
-  // `half` is the square's half-size as a percentage of frame height (the unit the
-  // annotation tool records). Convert to pixels, then scale so the square fills the cell.
-  const px = (Math.min(half, 50) / 100) * height;
-  const halfX = (px / width) * 100;
-  const left = Math.min(Math.max(cx - halfX, 0), Math.max(0, 100 - halfX * 2));
-  const top = Math.min(Math.max(cy - (px / height) * 100, 0), Math.max(0, 100 - (px / height) * 200));
-  const scale = side / (px * 2);
+  if (!side || !width || !height) return false;
+  // `half` is the crop square's half-size as a percentage of frame height.
+  const boxPx = (Math.min(half, 50) / 100) * height * 2;
+  const halfWidthPct = ((boxPx / 2) / width) * 100;
+  const halfHeightPct = (boxPx / 2 / height) * 100;
+  // Keep the square inside the frame so the cell is never clipped away.
+  const left = Math.min(Math.max(cx - halfWidthPct, 0), Math.max(0, 100 - halfWidthPct * 2));
+  const top = Math.min(Math.max(cy - halfHeightPct, 0), Math.max(0, 100 - halfHeightPct * 2));
+  // Scale the whole frame so the crop square is exactly one cell wide and tall.
+  const scale = side / boxPx;
   Object.assign(video.style, {
     position: "absolute",
     objectFit: "fill",
@@ -28,6 +31,7 @@ function applyCrop(video: HTMLVideoElement, host: HTMLElement, [cx, cy, half]: [
     left: `${-(left / 100) * width * scale}px`,
     top: `${-(top / 100) * height * scale}px`,
   });
+  return true;
 }
 
 export function VideoPlayer({ char, run, active, onState }: {
@@ -47,7 +51,7 @@ export function VideoPlayer({ char, run, active, onState }: {
         report.current({ phase: "loading" });
         const [module, meta] = await Promise.all([import("artplayer"), fetch(`/api/videos/${encodeURIComponent(char)}`, { signal: controller.signal }).then(async response => {
           if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || "示范视频暂时不可用");
-          return response.json() as Promise<{ start: number; end: number; crop?: [number, number, number] }>;
+          return response.json() as Promise<{ start: number; end: number; crop?: [number, number, number]; whole?: boolean }>;
         })]);
         if (cancelled || !host.current) return;
         // artplayer defaults to double-tap on touch devices; a single tap is what people expect here.
@@ -77,15 +81,10 @@ export function VideoPlayer({ char, run, active, onState }: {
         art.on("video:pause", () => { if (!cancelled) report.current({ phase: "playing", paused: true }); });
         art.on("video:error", () => { if (!cancelled) report.current({ phase: "error", error: "视频加载失败，请重试" }); });
 
-        if (meta.crop) {
-          const crop = meta.crop;
-          const fit = () => applyCrop(art.video, host.current!, crop);
-          art.video.addEventListener("loadedmetadata", fit, { once: true });
-          // Re-apply once artplayer finishes sizing its own container.
-          art.on("ready", () => requestAnimationFrame(fit));
-        }
-
-        {
+        if (meta.whole) {
+          // No timestamp marks for this part: play it from the start, artplayer loops.
+          art.video.loop = true;
+        } else {
           const { start, end } = meta;
           const seekToStart = () => { art.video.currentTime = start; };
           art.on("ready", seekToStart);

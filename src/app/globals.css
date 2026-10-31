@@ -65,7 +65,8 @@
 .focus-button { color: var(--muted-foreground); }
 .writing-entry { border-bottom: 1px solid var(--border); flex-shrink: 0; justify-content: space-between; align-items: center; gap: 12px; min-height: 54px; padding: 2px 0 9px; display: flex; }
 .entry-text { align-items: center; gap: 14px; font-family: "Songti SC", "Noto Serif CJK SC", serif; font-size: 24px; line-height: 1.35; display: flex; }
-.entry-char { position: relative; }
+.entry-char { background: 0 0; border: 0; color: inherit; cursor: pointer; padding: 0; font: inherit; position: relative; }
+.entry-char:disabled { cursor: default; }
 .entry-char.is-active { color: var(--primary); }
 .entry-char.is-active::after { background: var(--primary); height: 2px; position: absolute; right: 2px; bottom: -7px; left: 0; content: ""; }
 .view-switch { flex-shrink: 0; justify-content: center; display: flex; }
@@ -90,10 +91,8 @@
 .video-player .art-video-player { position: absolute; inset: 0; overflow: hidden; }
 .video-player .art-video-player .art-video { width: 100%; height: 100%; }
 .video-player video { object-fit: cover; object-position: center; }
-/* Wide shots from the 7000-character set are pulled back; cropping them to the cell
-   would leave mostly the pen. Show the whole frame and let the character be smaller. */
-/* JS positions the cropped video; the class only guards the pre-metadata moment. */
-.video-player.is-wide video { object-fit: contain; }
+/* The player centres the frame with object-fit until the crop maths takes over. */
+.video-player.is-wide video { object-fit: cover; object-position: center; }
 .video-player .art-video-player .art-bottom, .video-player .art-video-player .art-mask, .video-player .art-video-player.art-notice-show .art-notice { display: none; }
 .all-glyphs { touch-action: pan-y pinch-zoom; flex-direction: column; gap: 10px; overflow: auto; }
 .all-character { width: min(100cqw, max(96px, (100cqh - (var(--count) - 1) * 10px) / var(--count))); height: min(100cqw, max(96px, (100cqh - (var(--count) - 1) * 10px) / var(--count))); background: 0 0; border: 0; flex: none; padding: 0; display: block; }
@@ -102,6 +101,9 @@
 .font-placeholder svg { width: 18px; height: 18px; }
 .practice-details { flex-shrink: 0; flex-direction: column; justify-content: flex-start; gap: inherit; display: flex; }
 .app-shell:not(.has-panel, .is-focused) .practice-area:not(.is-all) > .glyph-stage { flex: 0 1 auto; aspect-ratio: 1; }
+/* A column flex parent squashes the height, and aspect-ratio alone would keep the
+   width at its full share. Sizing the cell by its own height keeps it exactly square. */
+.app-shell:not(.is-all) .practice-area:not(.is-all) > .glyph-stage { flex: 0 1 auto; height: 100%; width: auto; aspect-ratio: 1; align-self: center; }
 .font-caption { text-align: center; color: var(--muted-foreground); flex-shrink: 0; justify-content: center; gap: 8px; font-size: 12px; display: flex; }
 .character-navigation { flex-shrink: 0; justify-content: space-between; align-self: center; align-items: center; width: 100%; max-width: 370px; display: flex; }
 .page-number { font-variant-numeric: tabular-nums; color: var(--muted-foreground); font-size: 13px; }

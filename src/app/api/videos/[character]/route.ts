@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cha
   if (!hasVideo(character)) return Response.json({ available: false }, { headers: { "Cache-Control": "public, max-age=86400" } });
   const clip = clipFor(character);
   return Response.json(
-    { available: true, start: clip.start, end: clip.end, duration: clip.end - clip.start, crop: [clip.cx, clip.cy, clip.half] },
+    { available: true, start: clip.start, end: clip.end, duration: clip.end - clip.start, crop: [clip.cx, clip.cy, clip.half], whole: !!clip.whole },
     { headers: { "Cache-Control": "public, max-age=86400" } },
   );
 }

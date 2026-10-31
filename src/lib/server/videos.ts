@@ -2,7 +2,8 @@ import clips from "../videos2.json";
 
 // One collection only: each entry is a character's clip, start/end bracket its strokes.
 // cx/cy is the writing cell centre in % of the frame; half is its half-size in the same unit.
-export type Clip = { bvid: string; cid: number; start: number; end: number; part: number; cx: number; cy: number; half: number };
+// `whole` marks a character in a part without timestamp marks: the clip covers the part.
+export type Clip = { bvid: string; cid: number; start: number; end: number; part: number; cx: number; cy: number; half: number; whole?: boolean };
 const clipMap = clips as Record<string, Clip>;
 const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36", Referer: "https://www.bilibili.com" };
 // Play URLs carry a ~2 hour deadline; refresh before it lapses.
