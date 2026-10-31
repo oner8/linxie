@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "cn";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Expand, Grid2X2, LoaderCircle, Minimize2, Pause, PencilLine, Play, RotateCcw, SlidersHorizontal, Sun, Trash2, Type, Upload, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Expand, Grid2X2, LoaderCircle, Minimize2, Pause, PencilLine, Play, RotateCcw, SlidersHorizontal, Sun, Trash2, Type, Upload, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PracticeCell, GridLines } from "./practice-cell";
 import { StrokeAnimation, type StrokeProgress } from "./stroke-animation";
+import { VideoPlayer, type VideoState } from "./video-player";
 import { COLOR_PALETTE, DEFAULTS, GRIDS, STORAGE_KEY, THEMES, restoreSettings, swipeStep, validateText, type PublicFont, type Settings } from "@/lib/practice";
 import { forgetLocalFont, loadPracticeFont, LoadError } from "@/lib/browser-fonts";
 import { deleteLocalFont, inspectLocalFont, migrateLocalData, readLocalFonts, saveLocalFont, type LocalFont } from "@/lib/local-fonts";
@@ -55,6 +56,10 @@ export function PracticeApp() {
   const [strokePaused, setStrokePaused] = useState(false);
   const [strokeProgress, setStrokeProgress] = useState<StrokeProgress>({ phase: "idle", stroke: 0, total: 0 });
   const strokeSequence = useRef(0);
+  const [videoRun, setVideoRun] = useState(0);
+  const [videoState, setVideoState] = useState<VideoState>({ phase: "idle" });
+  const [videoMeta, setVideoMeta] = useState<{ available: boolean; duration?: number } | null>(null);
+  const videoSequence = useRef(0);
   const finishStroke = useCallback((progress: StrokeProgress) => { setStrokeProgress(progress); setStrokeRun(0); setStrokePaused(false); }, []);
   const request = useRef<{ sequence: number; controller?: AbortController }>({ sequence: 0 });
   const current = useRef<Display | null>(null);
@@ -247,14 +252,34 @@ export function PracticeApp() {
   const activeIndex = Math.min(index, chars.length - 1);
   const all = settings.view === "all" && chars.length > 1 && !panel;
   const strokeVisible = !!strokeRun && strokeProgress.phase === "playing";
+  const videoVisible = !!videoRun && (videoState.phase === "loading" || videoState.phase === "playing" || videoState.phase === "complete");
   useEffect(() => {
     setStrokeRun(0); setStrokePaused(false); setStrokeProgress({ phase: "idle", stroke: 0, total: 0 });
+    setVideoRun(0); setVideoState({ phase: "idle" });
   }, [activeIndex, display?.family, display?.text, all, panel]);
+  const character = chars[activeIndex];
+  useEffect(() => {
+    let cancelled = false;
+    setVideoMeta(null);
+    fetch(`/api/videos/${encodeURIComponent(character)}`)
+      .then(response => response.ok ? response.json().then(body => ({ available: !!body.available, duration: body.duration })) : { available: false })
+      .catch(() => ({ available: false }))
+      .then(meta => { if (!cancelled) setVideoMeta(meta); });
+    return () => { cancelled = true; };
+  }, [character]);
   const playStroke = () => {
+    stopVideo();
     setStrokePaused(false); setStrokeProgress({ phase: "loading", stroke: 0, total: 0 }); setStrokeRun(++strokeSequence.current);
   };
   const stopStroke = () => {
     setStrokeRun(0); setStrokePaused(false); setStrokeProgress(p => ({ phase: "idle", stroke: 0, total: p.total }));
+  };
+  const playVideo = () => {
+    stopStroke();
+    setVideoRun(++videoSequence.current);
+  };
+  const stopVideo = () => {
+    setVideoRun(0); setVideoState({ phase: "idle" });
   };
   const step = (direction: number) => setIndex(i => Math.max(0, Math.min(chars.length - 1, i + direction)));
   let draftError = "";
@@ -283,15 +308,16 @@ export function PracticeApp() {
         <div className={cn("glyph-stage", all && "all-glyphs")} style={{ "--count": chars.length } as React.CSSProperties}
           tabIndex={panel ? -1 : 0} aria-label={all ? "全部汉字，点击可放大" : "左右滑动或使用左右方向键切字"}
           onKeyDown={e => { if (!panel && !all && ["ArrowLeft", "ArrowRight"].includes(e.key)) { e.preventDefault(); step(e.key === "ArrowRight" ? 1 : -1); } }}
-          onPointerDown={e => { if (panel || all || chars.length < 2 || !e.isPrimary) return; pointer.current = { x: e.clientX, y: e.clientY, time: performance.now(), id: e.pointerId }; e.currentTarget.setPointerCapture(e.pointerId); }}
+          onPointerDown={e => { if (panel || all || videoVisible || chars.length < 2 || !e.isPrimary) return; pointer.current = { x: e.clientX, y: e.clientY, time: performance.now(), id: e.pointerId }; e.currentTarget.setPointerCapture(e.pointerId); }}
           onPointerCancel={() => { pointer.current = null; }}
-          onPointerUp={e => { const p = pointer.current; pointer.current = null; if (p && p.id === e.pointerId && !panel && !all) step(swipeStep(e.clientX - p.x, e.clientY - p.y, performance.now() - p.time)); }}>
-          {(all ? chars : [chars[activeIndex]]).map((char, i) => all ? <button key={i} className="all-character" aria-label={`放大第 ${i + 1} 字：${char}`} onClick={() => { setIndex(i); setSettings(s => ({ ...s, view: "single" })); }}><PracticeCell char={display ? char : undefined} family={display?.family} grid={settings.grid} size={settings.size} opacity={settings.opacity} lineColor={settings.lineColor} textColor={settings.textColor} /></button> : <PracticeCell key="single" char={display ? char : undefined} family={display?.family} grid={settings.grid} size={settings.size} opacity={settings.opacity} lineColor={settings.lineColor} textColor={settings.textColor} hideCharacter={strokeVisible} />)}
+          onPointerUp={e => { const p = pointer.current; pointer.current = null; if (p && p.id === e.pointerId && !panel && !all && !videoVisible) step(swipeStep(e.clientX - p.x, e.clientY - p.y, performance.now() - p.time)); }}>
+          {(all ? chars : [chars[activeIndex]]).map((char, i) => all ? <button key={i} className="all-character" aria-label={`放大第 ${i + 1} 字：${char}`} onClick={() => { setIndex(i); setSettings(s => ({ ...s, view: "single" })); }}><PracticeCell char={display ? char : undefined} family={display?.family} grid={settings.grid} size={settings.size} opacity={settings.opacity} lineColor={settings.lineColor} textColor={settings.textColor} /></button> : <PracticeCell key="single" char={display ? char : undefined} family={display?.family} grid={settings.grid} size={settings.size} opacity={settings.opacity} lineColor={settings.lineColor} textColor={settings.textColor} hideCharacter={strokeVisible || videoVisible} />)}
           <StrokeAnimation char={chars[activeIndex]} run={strokeRun} size={settings.size} color={settings.textColor} paused={strokePaused} visible={strokeVisible && !all && !panel} onProgress={setStrokeProgress} onFinish={finishStroke} />
+          <VideoPlayer char={chars[activeIndex]} run={videoRun} active={videoVisible && !all && !panel} onState={setVideoState} />
           {!display && <div className="font-placeholder"><LoaderCircle className="spin" aria-hidden="true" /><span>字体加载中</span></div>}
         </div>
         {!panel && <div className="practice-details">
-          <p className="font-caption">{strokeVisible ? "参考楷书" : display?.name || "准备字体"}<span>·</span>{GRIDS.find(g => g.id === settings.grid)?.name}</p>
+          <p className="font-caption">{videoVisible ? "荆霄鹏行楷示范" : strokeVisible ? "参考楷书" : display?.name || "准备字体"}<span>·</span>{GRIDS.find(g => g.id === settings.grid)?.name}</p>
           {chars.length > 1 && !all && <nav className="character-navigation" aria-label="切换汉字"><Button variant="ghost" disabled={activeIndex === 0} onClick={() => step(-1)} aria-label="上一字"><ArrowLeft data-icon="inline-start" /><span>上一字</span></Button><span className="page-number" aria-live="polite">{activeIndex + 1} / {chars.length}</span><Button variant="ghost" disabled={activeIndex === chars.length - 1} onClick={() => step(1)} aria-label="下一字"><span>下一字</span><ArrowRight data-icon="inline-end" /></Button></nav>}
           {all && <p className="practice-hint">点击任一字，放大临写</p>}
           {!all && <section className="stroke-tools" aria-label="笔顺演示工具">
@@ -299,6 +325,11 @@ export function PracticeApp() {
               <div className="stroke-actions">{strokeVisible ? <><Button variant="ghost" size="sm" aria-label={strokePaused ? "继续笔顺演示" : "暂停笔顺演示"} onClick={() => setStrokePaused(p => !p)}>{strokePaused ? <Play /> : <Pause />}{strokePaused ? "继续" : "暂停"}</Button><Button variant="ghost" size="icon-sm" aria-label="重播笔顺演示" onClick={playStroke}><RotateCcw /></Button><Button variant="ghost" size="sm" aria-label="返回范字" onClick={stopStroke}>返回</Button></> : <Button variant="secondary" size="sm" onClick={playStroke} disabled={!display || !!loading || strokeProgress.phase === "loading"} aria-label={strokeProgress.phase === "complete" ? "重播笔顺演示" : "笔顺演示"}>{strokeProgress.phase === "loading" ? <LoaderCircle className="spin" /> : strokeProgress.phase === "complete" ? <RotateCcw /> : <Play />}{strokeProgress.phase === "complete" ? "重播" : "笔顺演示"}</Button>}</div>
             </div>
             {strokeProgress.total > 0 && <progress className="stroke-progress" max={strokeProgress.total} value={strokeProgress.phase === "idle" ? 0 : strokeProgress.stroke} aria-label="笔顺演示进度" />}
+          </section>}
+          {!all && <section className="stroke-tools" aria-label="示范视频工具">
+            <div className="stroke-tools-row"><div className="stroke-description"><p className="stroke-title">示范视频{videoMeta?.duration ? <span>{videoMeta.duration} 秒</span> : null}</p><p className="stroke-note" role="status">{videoState.phase === "loading" ? "正在加载视频…" : videoState.phase === "playing" ? videoState.paused ? "已暂停，点击画面继续" : "正在循环播放" : videoState.phase === "complete" ? "播放完成，继续临写" : videoState.phase === "error" ? videoState.error : videoMeta && !videoMeta.available ? "暂无此字的示范视频" : "看一笔一画怎么写"}</p></div>
+              <div className="stroke-actions">{videoVisible ? <><Button variant="ghost" size="icon-sm" aria-label="重播示范视频" onClick={playVideo}><RotateCcw /></Button><Button variant="ghost" size="sm" aria-label="返回范字" onClick={stopVideo}>返回</Button></> : <Button variant="secondary" size="sm" onClick={playVideo} disabled={!display || !!loading || !videoMeta?.available} aria-label="视频演示">{videoState.phase === "error" ? <RotateCcw /> : <Video />}{videoState.phase === "error" ? "重试" : "视频演示"}</Button>}</div>
+            </div>
           </section>}
           {focus && settings.wake && <p className="wake-status" role="status"><Sun aria-hidden="true" />{wake === "on" ? "屏幕保持常亮" : wake === "unsupported" ? "当前浏览器不支持常亮，请调整系统设置" : wake === "failed" ? "未能开启常亮，请调整系统设置" : "专注临写"}</p>}
         </div>}

@@ -85,6 +85,16 @@
 .practice-cell { flex-shrink: 0; width: min(100cqw,100cqh); height: min(100cqw,100cqh); display: block; }
 .stroke-animation { pointer-events: none; visibility: hidden; position: absolute; }
 .stroke-animation.is-active { visibility: visible; }
+.video-player { pointer-events: none; visibility: hidden; position: absolute; inset: 0; overflow: hidden; cursor: pointer; }
+.video-player.is-active { visibility: visible; pointer-events: auto; }
+.video-player .art-video-player { position: absolute; inset: 0; overflow: hidden; }
+.video-player .art-video-player .art-video { width: 100%; height: 100%; }
+.video-player video { object-fit: cover; object-position: center; }
+/* Wide shots from the 7000-character set are pulled back; cropping them to the cell
+   would leave mostly the pen. Show the whole frame and let the character be smaller. */
+/* JS positions the cropped video; the class only guards the pre-metadata moment. */
+.video-player.is-wide video { object-fit: contain; }
+.video-player .art-video-player .art-bottom, .video-player .art-video-player .art-mask, .video-player .art-video-player.art-notice-show .art-notice { display: none; }
 .all-glyphs { touch-action: pan-y pinch-zoom; flex-direction: column; gap: 10px; overflow: auto; }
 .all-character { width: min(100cqw, max(96px, (100cqh - (var(--count) - 1) * 10px) / var(--count))); height: min(100cqw, max(96px, (100cqh - (var(--count) - 1) * 10px) / var(--count))); background: 0 0; border: 0; flex: none; padding: 0; display: block; }
 .all-character .practice-cell { width: 100%; height: 100%; }
