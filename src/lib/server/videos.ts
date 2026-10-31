@@ -24,11 +24,6 @@ export function hasVideo(character: string) {
   return character in clipMap;
 }
 
-// Optional login cookie raises the quality ceiling; without it only 480p is offered.
-export function signedIn() {
-  return !!process.env.BILIBILI_SESSDATA;
-}
-
 type Track = { id: number; codecid: number; width: number; height: number; baseUrl: string };
 type PlayInfo = { code: number; message?: string; data?: { dash?: { video: Track[] } } };
 

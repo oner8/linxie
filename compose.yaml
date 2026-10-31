@@ -2,13 +2,15 @@ name: linxie
 
 services:
   app:
-    image: ${LINXIE_IMAGE:-linxie:0.1.2}
+    image: ${LINXIE_IMAGE:-linxie:0.1.3}
     restart: unless-stopped
     init: true
     ports:
       - "127.0.0.1:${LINXIE_PORT:-3100}:3000"
     environment:
       TRUST_PROXY: "1"
+      # Optional: raises the demonstration-video quality ceiling above 480p.
+      BILIBILI_SESSDATA: ${BILIBILI_SESSDATA:-}
     volumes:
       - ${LINXIE_FONT_DIR:-./data/fonts}:/app/data/fonts:ro,Z
       - ${LINXIE_CACHE_DIR:-./data/cache}:/app/data/cache:Z

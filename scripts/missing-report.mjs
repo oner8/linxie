@@ -1,8 +1,7 @@
 // Lists episodes without comment timestamps, with the characters each part covers,
 // so they can be annotated by hand in the same "集号#时:分:秒 字" format.
 // Run: BILIBILI_SESSDATA=... node scripts/missing-report.mjs
-import { writeFile } from "node:fs/promises";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 const BV = "19qRCBEE9q";
 const headers = {

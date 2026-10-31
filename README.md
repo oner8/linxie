@@ -10,6 +10,7 @@
 - 导入本机 TTF、OTF、WOFF、WOFF2；文件只保存在浏览器 IndexedDB
 - 字形大小、格线深浅、线条颜色、描红颜色及六组主题
 - 标准楷书笔顺动画，播放结束后恢复所选范字
+- 示范视频：逐字循环播放该字的书写过程，画面裁到田字格内
 - 专注模式及浏览器支持时保持屏幕常亮
 
 ## 技术
@@ -17,6 +18,8 @@
 项目使用 Next.js、React、TypeScript、Tailwind CSS 和 shadcn/ui。服务端通过 FontTools 与 Brotli 按字生成字体子集，使用磁盘缓存，不依赖数据库。
 
 浏览器设置保存在 localStorage；用户导入的字体保存在 IndexedDB，不会上传到服务器。内置字体原件、处理结果、缓存、环境文件和内部文档不纳入 Git。
+
+示范视频取自 B 站「全网最全 行楷 7000 字逐字示范」，按 B 站要求经服务端代理转发（直连 CDN 会被 403）。每个字的时间点与裁切框已整理为 `src/lib/videos2.json`，共 5297 字；其中 3497 字为精确片段，其余整集播放。该数据不随请求变化，改动后需重新部署；接口返回 `no-store`，避免浏览器沿用旧片段。
 
 ## 本地开发
 
@@ -80,10 +83,12 @@ docker compose -f docker-compose.yaml up -d --wait
 
 已有 `.env` 部署会沿用 `LINXIE_FONT_DIR` 和 `LINXIE_CACHE_DIR`；镜像和宿主机端口以 YAML 为准。源码根目录的本地 `compose.yaml` 仍支持全部 `LINXIE_*` 覆盖，可参考 `.env.example`。
 
-如需自己构建，在源码根目录执行以下命令，并将部署 YAML 的 `image` 改为 `linxie:0.1.2`：
+示范视频默认按未登录处理，最高 480p。在 `.env` 中设置 `BILIBILI_SESSDATA`（B 站登录后的 Cookie 值，仅用于提高画质）可通过 `compose.yaml` 传入容器；`docker-compose.yaml` 未传该变量，需要时按同样方式补一行。Cookie 只存在宿主机，不写入镜像或仓库。
+
+如需自己构建，在源码根目录执行以下命令，并将部署 YAML 的 `image` 改为 `linxie:0.1.3`：
 
 ```sh
-docker build -t linxie:0.1.2 .
+docker build -t linxie:0.1.3 .
 ```
 
 ### 运行时增加字体
