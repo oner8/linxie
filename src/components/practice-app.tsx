@@ -261,7 +261,7 @@ export function PracticeApp() {
   useEffect(() => {
     let cancelled = false;
     setVideoMeta(null);
-    fetch(`/api/videos/${encodeURIComponent(character)}`)
+    fetch(`/api/videos/${encodeURIComponent(character)}`, { cache: "no-store" })
       .then(response => response.ok ? response.json().then(body => ({ available: !!body.available, duration: body.duration })) : { available: false })
       .catch(() => ({ available: false }))
       .then(meta => { if (!cancelled) setVideoMeta(meta); });

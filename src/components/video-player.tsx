@@ -46,10 +46,11 @@ export function VideoPlayer({ char, run, active, onState }: {
     if (!run) return;
     let cancelled = false;
     const controller = new AbortController();
+    const cleanups: Array<() => void> = [];
     async function play() {
       try {
         report.current({ phase: "loading" });
-        const [module, meta] = await Promise.all([import("artplayer"), fetch(`/api/videos/${encodeURIComponent(char)}`, { signal: controller.signal }).then(async response => {
+        const [module, meta] = await Promise.all([import("artplayer"), fetch(`/api/videos/${encodeURIComponent(char)}`, { signal: controller.signal, cache: "no-store" }).then(async response => {
           if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || "示范视频暂时不可用");
           return response.json() as Promise<{ start: number; end: number; crop?: [number, number, number]; whole?: boolean }>;
         })]);
@@ -59,7 +60,7 @@ export function VideoPlayer({ char, run, active, onState }: {
         module.default.MOBILE_DBCLICK_PLAY = false;
         const art = new module.default({
           container: host.current,
-          url: `/api/videos/${encodeURIComponent(char)}/stream`,
+          url: `/api/videos/${encodeURIComponent(char)}/stream?t=${run}`,
           type: "mp4",
           autoplay: true,
           muted: true,
@@ -81,6 +82,23 @@ export function VideoPlayer({ char, run, active, onState }: {
         art.on("video:pause", () => { if (!cancelled) report.current({ phase: "playing", paused: true }); });
         art.on("video:error", () => { if (!cancelled) report.current({ phase: "error", error: "视频加载失败，请重试" }); });
 
+        if (meta.crop) {
+          const crop = meta.crop;
+          // Metadata and the container size arrive in either order, so retry until the
+          // crop lands. Without this the frame stays 16:9 and neighbours show through.
+          let tries = 0;
+          const fit = () => {
+            if (cancelled || !host.current) return;
+            if (applyCrop(art.video, host.current, crop)) return;
+            if (++tries < 120) requestAnimationFrame(fit);
+          };
+          fit();
+          art.on("ready", fit);
+          art.video.addEventListener("loadedmetadata", fit);
+          window.addEventListener("resize", fit);
+          cleanups.push(() => window.removeEventListener("resize", fit));
+        }
+
         if (meta.whole) {
           // No timestamp marks for this part: play it from the start, artplayer loops.
           art.video.loop = true;
@@ -101,6 +119,7 @@ export function VideoPlayer({ char, run, active, onState }: {
     void play();
     return () => {
       cancelled = true; controller.abort();
+      for (const off of cleanups) off();
       player.current?.destroy(false); player.current = null;
     };
   }, [char, run]);
