@@ -1,5 +1,6 @@
-# Docker 部署示例：先准备 data/fonts，再运行
+# 部署示例：先准备 data/fonts 和 data/videos.json，再运行
 # docker compose -f docker-compose.yaml up -d --wait
+# 没有 videos.json 时应用仍可用，只是「视频演示」不可用。
 name: linxie
 
 services:
@@ -11,7 +12,9 @@ services:
       - "127.0.0.1:3100:3000"
     environment:
       TRUST_PROXY: "1"
+      BILIBILI_SESSDATA: ${BILIBILI_SESSDATA:-}
     volumes:
+      - ${LINXIE_VIDEO_DATA:-./data/videos.json}:/app/data/videos.json:ro,Z
       - ${LINXIE_FONT_DIR:-./data/fonts}:/app/data/fonts:ro,Z
       - ${LINXIE_CACHE_DIR:-./data/cache}:/app/data/cache:Z
     logging:

@@ -70,18 +70,21 @@ tar -xzf linxie-fonts-0.1.2.tar.gz -C .
 
 解压后得到 `data/fonts/`，内含 `manifest.json` 和八组 `.json`、`.ttf`。字体包不在 GitHub 或 GHCR 中；镜像不包含字体。若修改字体挂载路径，请将宿主机路径指向解压出的 `data/fonts/`。
 
-按实际情况直接修改 `docker-compose.yaml` 中的镜像、宿主机端口和两条挂载的宿主机目录，默认如下：
+再把 `data/videos.json` 放进同一个 `data/` 目录（获取方式见「示范视频数据」）。缺这个文件时部署照常可用，只是「视频演示」按钮不可用。
+
+按实际情况直接修改 `docker-compose.yaml` 中的镜像、宿主机端口和三条挂载的宿主机目录，默认如下：
 
 ```yaml
 image: ghcr.io/oner8/linxie:latest
 ports:
   - "127.0.0.1:3100:3000"
 volumes:
+  - ./data/videos.json:/app/data/videos.json:ro,Z
   - ./data/fonts:/app/data/fonts:ro,Z
   - ./data/cache:/app/data/cache:Z
 ```
 
-保留字体挂载的 `ro` 和两条挂载的 `:Z`。字体目录需对 UID `1000` 可读、可遍历（通常目录 `755`、文件 `644`）；缓存目录由容器入口初始化，无需手动 `chown`。`:Z` 为本站独立目录设置 SELinux 标签，请使用本站专用目录。
+保留视频与字体挂载的 `ro` 和三条挂载的 `:Z`。字体目录需对 UID `1000` 可读、可遍历（通常目录 `755`、文件 `644`）；缓存目录由容器入口初始化，无需手动 `chown`。`:Z` 为本站独立目录设置 SELinux 标签，请使用本站专用目录。
 
 配置完成后启动，无需创建 `.env`：
 
@@ -92,9 +95,19 @@ docker compose -f docker-compose.yaml up -d --wait
 
 端口默认只监听 `127.0.0.1`，通过 HTTPS 反向代理访问。更改宿主机端口后同步修改反向代理端口；宝塔配置示例见 `deploy/nginx-location.conf`，反代应覆盖 `X-Real-IP`，与 `TRUST_PROXY=1` 配合。
 
-已有 `.env` 部署会沿用 `LINXIE_FONT_DIR` 和 `LINXIE_CACHE_DIR`；镜像和宿主机端口以 YAML 为准。源码根目录的本地 `compose.yaml` 仍支持全部 `LINXIE_*` 覆盖，可参考 `.env.example`。
+仓库里有三个部署相关文件，用途不同：
 
-示范视频默认按未登录处理，最高 480p。在 `.env` 中设置 `BILIBILI_SESSDATA`（B 站登录后的 Cookie 值，仅用于提高画质）可通过 `compose.yaml` 传入容器；`docker-compose.yaml` 未传该变量，需要时按同样方式补一行。Cookie 只存在宿主机，不写入镜像或仓库。
+| 文件 | 用途 |
+| --- | --- |
+| `docker-compose.yaml` | 面向部署：拉取 `ghcr.io/oner8/linxie:latest`，端口写死 3100 |
+| `compose.yaml` | 面向本机构建：镜像默认 `linxie:0.1.3`，端口和路径都可用 `.env` 覆盖 |
+| `Dockerfile` | 构建镜像本身 |
+
+两个 YAML 的服务定义一致（三条挂载 + `BILIBILI_SESSDATA`），只在镜像来源和可覆盖项上不同。同目录同时存在时 Compose 优先读 `compose.yaml`；部署时用 `-f docker-compose.yaml` 明确指定。
+
+已有 `.env` 部署会沿用 `LINXIE_FONT_DIR` 和 `LINXIE_CACHE_DIR`；镜像和宿主机端口以 YAML 为准。源码根目录的本地 `compose.yaml` 支持全部 `LINXIE_*` 覆盖，可参考 `.env.example`。
+
+示范视频默认按未登录处理，最高 480p。在 `.env` 中设置 `BILIBILI_SESSDATA`（B 站登录后的 Cookie 值，仅用于提高画质），两个 YAML 都会把它传入容器。Cookie 只存在宿主机，不写入镜像或仓库。
 
 如需自己构建，在源码根目录执行以下命令，并将部署 YAML 的 `image` 改为 `linxie:0.1.3`：
 
