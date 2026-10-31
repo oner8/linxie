@@ -15,7 +15,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 python3
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m venv /opt/font-tools
 COPY requirements.txt ./
-RUN /opt/font-tools/bin/pip install --no-cache-dir -r requirements.txt
+RUN /opt/font-tools/bin/pip install --no-cache-dir -r requirements.txt \
+    && SP=/opt/font-tools/lib/python3.11/site-packages \
+    && rm -rf $SP/pip $SP/pip-* $SP/setuptools $SP/setuptools-* $SP/pkg_resources \
+       $SP/_distutils_hack $SP/distutils-precedence.pth $SP/*.dist-info
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --chown=node:node scripts ./scripts

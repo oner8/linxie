@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const config: NextConfig = {
   output: "standalone",
+  // sharp only serves next/image, which this app does not use.
+  outputFileTracingExcludes: {
+    "*": ["./node_modules/@img/**", "./node_modules/sharp/**"],
+  },
   outputFileTracingIncludes: {
     "/api/strokes/*": ["./node_modules/hanzi-writer-data/*.json", "./node_modules/hanzi-writer-data/ARPHICPL.TXT", "./node_modules/hanzi-writer/LICENSE"],
   },
