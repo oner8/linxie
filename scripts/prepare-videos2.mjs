@@ -79,7 +79,7 @@ async function main() {
   }
 
   const ordered = Object.fromEntries(Object.entries(clips).sort(([a], [b]) => a.codePointAt(0) - b.codePointAt(0)));
-  await writeFile(new URL("../src/lib/videos2.json", import.meta.url), JSON.stringify(ordered) + "\n");
+  await writeFile(new URL("../data/videos.json", import.meta.url), JSON.stringify(ordered) + "\n");
   console.log(`comment messages=${messages.length} episodes=${byEpisode.size} clips=${Object.keys(ordered).length} duplicate=${unused} skipped=${skipped.length}`);
   if (skipped.length) console.log("skipped:", JSON.stringify(skipped.slice(0, 10)));
 }

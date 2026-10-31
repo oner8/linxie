@@ -12,6 +12,7 @@ services:
       # Optional: raises the demonstration-video quality ceiling above 480p.
       BILIBILI_SESSDATA: ${BILIBILI_SESSDATA:-}
     volumes:
+      - ${LINXIE_VIDEO_DATA:-./data/videos.json}:/app/data/videos.json:ro,Z
       - ${LINXIE_FONT_DIR:-./data/fonts}:/app/data/fonts:ro,Z
       - ${LINXIE_CACHE_DIR:-./data/cache}:/app/data/cache:Z
     logging:
