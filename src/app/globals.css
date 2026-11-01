@@ -86,7 +86,7 @@
 .practice-cell { flex-shrink: 0; width: min(100cqw,100cqh); height: min(100cqw,100cqh); display: block; }
 .stroke-animation { pointer-events: none; visibility: hidden; position: absolute; }
 .stroke-animation.is-active { visibility: visible; }
-.video-player { pointer-events: none; visibility: hidden; position: absolute; inset: 0; overflow: hidden; cursor: pointer; }
+.video-player { pointer-events: none; visibility: hidden; position: absolute; top: 50%; left: 50%; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); transform: translate(-50%, -50%); overflow: hidden; cursor: pointer; }
 .video-player.is-active { visibility: visible; pointer-events: auto; }
 .video-player .art-video-player { position: absolute; inset: 0; overflow: hidden; }
 .video-player .art-video-player .art-video { width: 100%; height: 100%; }
@@ -101,9 +101,6 @@
 .font-placeholder svg { width: 18px; height: 18px; }
 .practice-details { flex-shrink: 0; flex-direction: column; justify-content: flex-start; gap: inherit; display: flex; }
 .app-shell:not(.has-panel, .is-focused) .practice-area:not(.is-all) > .glyph-stage { flex: 0 1 auto; aspect-ratio: 1; }
-/* A column flex parent squashes the height, and aspect-ratio alone would keep the
-   width at its full share. Sizing the cell by its own height keeps it exactly square. */
-.app-shell:not(.is-all) .practice-area:not(.is-all) > .glyph-stage { flex: 0 1 auto; height: 100%; width: auto; aspect-ratio: 1; align-self: center; }
 .font-caption { text-align: center; color: var(--muted-foreground); flex-shrink: 0; justify-content: center; gap: 8px; font-size: 12px; display: flex; }
 .character-navigation { flex-shrink: 0; justify-content: space-between; align-self: center; align-items: center; width: 100%; max-width: 370px; display: flex; }
 .page-number { font-variant-numeric: tabular-nums; color: var(--muted-foreground); font-size: 13px; }
