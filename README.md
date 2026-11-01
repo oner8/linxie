@@ -23,14 +23,21 @@
 
 ## 示范视频数据
 
-视频时间点和裁切框存放在 `data/videos.json`，默认**不在仓库中**：它体积较大、改动频繁，放进 Git 会让历史持续膨胀。没有这个文件时应用照常运行，只是「视频演示」按钮不可用。
+视频时间点和裁切框存放在 `data/videos.json`，随仓库分发，克隆即可用。文件约 91 KB，按「源 → 集 → 字」组织：
 
-获取方式（任选）：
+```json
+{ "sources": [ { "bvid": "BV...", "parts": {
+  "10": { "cid": 38107352139, "cx": 49.6, "cy": 48.2, "half": 46.3,
+          "chars": { "永": [81, 91] } } } } ] }
+```
 
-- 向维护者索取 `linxie-videos-0.1.3.json`，放到仓库根目录的 `data/` 下并重命名为 `videos.json`
-- 自行采集：设置 `BILIBILI_SESSDATA` 后运行 `node scripts/prepare-videos2.mjs`，脚本会从合集评论抓取每个字的起笔时间并写出该文件
+- `cx / cy / half` 是这一集田字格在画面中的位置，按集存一份
+- `chars` 存该字的起止秒数；`[start, end, 1]` 表示没有逐字时间点时整集播放
+- `sources` 是有序数组，同一字出现在多个合集时靠前者优先
 
-也可用 `LINXIE_VIDEO_DATA` 指向任意路径。容器部署时该文件由 `compose.yaml` 挂载到 `/app/data/videos.json`，镜像本身不含数据。
+没有这个文件时应用照常运行，只是「视频演示」按钮不可用。也可用 `LINXIE_VIDEO_DATA` 指向任意路径。容器部署时该文件由 `compose.yaml` 挂载到 `/app/data/videos.json`，镜像本身不含数据。
+
+维护这份数据用 `tools/annotate/`（裁切框 + 时间点合一的本地工具），详见 [tools/annotate/README.md](tools/annotate/README.md)。
 
 ## 本地开发
 
@@ -70,7 +77,7 @@ tar -xzf linxie-fonts-0.1.2.tar.gz -C .
 
 解压后得到 `data/fonts/`，内含 `manifest.json` 和八组 `.json`、`.ttf`。字体包不在 GitHub 或 GHCR 中；镜像不包含字体。若修改字体挂载路径，请将宿主机路径指向解压出的 `data/fonts/`。
 
-再把 `data/videos.json` 放进同一个 `data/` 目录（获取方式见「示范视频数据」）。缺这个文件时部署照常可用，只是「视频演示」按钮不可用。
+`data/videos.json` 随仓库提供，克隆后即在同一位置。缺这个文件时部署照常可用，只是「视频演示」按钮不可用。
 
 按实际情况直接修改 `docker-compose.yaml` 中的镜像、宿主机端口和三条挂载的宿主机目录，默认如下：
 

@@ -1,15 +1,40 @@
 import { readFileSync } from "node:fs";
 
-// One collection only: each entry is a character's clip, start/end bracket its strokes.
-// cx/cy is the writing cell centre in % of the frame; half is its half-size in the same unit.
-// `whole` marks a character in a part without timestamp marks: the clip covers the part.
+// start/end bracket the strokes of one character; cx/cy is the writing cell centre in %
+// of the frame and half its half-size in the same unit. `whole` marks a character in a
+// part without timestamp marks: the clip covers the whole part.
 export type Clip = { bvid: string; cid: number; start: number; end: number; part: number; cx: number; cy: number; half: number; whole?: boolean };
+type Part = { cid: number; cx: number; cy: number; half: number; chars: Record<string, number[]> };
+type Source = { bvid: string; parts: Record<string, Part> };
+
+// Several collections can supply characters. Order is priority: the first source to
+// claim a character wins, so a newer collection only fills the gaps.
+export function parseSources(data: unknown): Record<string, Clip> {
+  if (!data || typeof data !== "object") return {};
+  const sources = (data as { sources?: unknown }).sources;
+  // Older files stored one flat map of character -> clip; keep reading them.
+  if (!Array.isArray(sources)) return data as Record<string, Clip>;
+  const clips: Record<string, Clip> = {};
+  for (const source of sources as Source[]) {
+    for (const [part, info] of Object.entries(source.parts ?? {})) {
+      for (const [char, [start, end, whole]] of Object.entries(info.chars ?? {})) {
+        // A character may be written in more than one collection; the first one stays.
+        clips[char] ??= { bvid: source.bvid, cid: info.cid, start, end, part: Number(part), cx: info.cx, cy: info.cy, half: info.half, ...(whole ? { whole: true } : {}) };
+      }
+    }
+  }
+  return clips;
+}
+
 // The clips ship outside the image, next to the fonts. A missing file is not fatal:
 // the practice cell works on its own, so the video button just stays disabled.
-const clipMap: Record<string, Clip> = (() => {
+const clipMap = (() => {
+  const file = process.env.LINXIE_VIDEO_DATA ?? "data/videos.json";
   try {
-    return JSON.parse(readFileSync(process.env.LINXIE_VIDEO_DATA ?? "data/videos.json", "utf8")) as Record<string, Clip>;
-  } catch {
+    return parseSources(JSON.parse(readFileSync(file, "utf8")));
+  } catch (error) {
+    // Deployment without the data file is a normal state; a broken one is not.
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") console.warn(`示范视频数据无法读取（${file}）：${(error as Error).message}`);
     return {};
   }
 })();

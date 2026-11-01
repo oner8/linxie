@@ -2,7 +2,8 @@ node_modules/
 /tests/
 .next/
 out/
-data/
+data/*
+!data/videos.json
 dist/
 docs/
 deploy/INSTALL.md

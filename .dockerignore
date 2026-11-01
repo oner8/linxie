@@ -5,6 +5,7 @@ data
 dist
 docs
 tests
+tools
 test-results
 playwright-report
 .env*

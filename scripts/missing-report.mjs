@@ -10,8 +10,9 @@ const headers = {
 };
 const session = process.env.BILIBILI_SESSDATA?.trim();
 
-const clips = JSON.parse(await readFile(new URL("../data/videos.json", import.meta.url), "utf8"));
-const annotated = new Set(Object.values(clips).map(clip => clip.part));
+const data = JSON.parse(await readFile(new URL("../data/videos.json", import.meta.url), "utf8"));
+// Every part that has a crop box is considered annotated, across all sources.
+const annotated = new Set(data.sources.flatMap(source => Object.keys(source.parts).map(Number)));
 
 const body = await (await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=BV${BV}`, { headers: session ? { ...headers, Cookie: `SESSDATA=${session}` } : headers })).json();
 if (body.code !== 0) throw new Error(`view: ${body.code} ${body.message ?? ""}`);

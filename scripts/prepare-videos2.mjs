@@ -1,10 +1,15 @@
-// Build per-character clips from the 7000-字 collection's comment timestamps.
+// Fill in per-character start times from the 7000-字 collection's comment timestamps.
 // The uploader marked each character's start time in a comment; those marks lead the
 // part titles (which only list what a part covers), so the comments are authoritative.
+//
+// This merges into data/videos.json rather than rewriting it: crop boxes, hand-marked
+// episodes and whole-part entries do not come from comments and must survive a rerun.
+// A part without a crop box is skipped, so times never land next to a missing box.
 // Run with BILIBILI_SESSDATA in the environment: node scripts/prepare-videos2.mjs
 import { readFile, writeFile } from "node:fs/promises";
 
 const BV = "BV19qRCBEE9q";
+const DATA = new URL("../data/videos.json", import.meta.url);
 const AID = "116520617320087";
 const headers = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
@@ -48,9 +53,25 @@ async function parts() {
   return body.data.pages;
 }
 
+async function readData() {
+  try {
+    const data = JSON.parse(await readFile(DATA, "utf8"));
+    if (!Array.isArray(data?.sources)) throw new Error("unexpected shape");
+    return data;
+  } catch (error) {
+    if (error.code === "ENOENT") return { sources: [] };
+    throw error;
+  }
+}
+
 async function main() {
-    const messages = await comments();
+  const messages = await comments();
   const pages = await parts();
+  const data = await readData();
+
+  let source = data.sources.find(entry => entry.bvid === BV);
+  if (!source) { source = { bvid: BV, parts: {} }; data.sources.push(source); }
+
   const byEpisode = new Map();
   for (const message of messages) {
     for (const mark of partMarks(message)) {
@@ -59,28 +80,31 @@ async function main() {
     }
   }
 
-  const clips = {};
+  let filled = 0, kept = 0;
   const skipped = [];
-  let unused = 0;
   for (const [episode, marks] of [...byEpisode].sort((a, b) => a[0] - b[0])) {
     const page = pages[episode - 1];
     if (!page) { skipped.push(`episode ${episode}: no part`); continue; }
+    const existing = source.parts[episode];
+    // Crop boxes and the cid are measured by hand; without them the times are unusable.
+    if (!existing || typeof existing.half !== "number") { skipped.push(`episode ${episode}: no crop box`); continue; }
     const sorted = [...marks].sort((a, b) => a.seconds - b.seconds);
     sorted.forEach((mark, index) => {
-      if (clips[mark.char]) { unused++; return; }
-      // The mark is the stroke that starts the character; run until the next mark starts.
-      // Two marks can share a second when the writer moves straight on, so keep a floor
-      // rather than dropping the clip.
+      // Characters the collection lists twice keep their first appearance.
+      if (existing.chars[mark.char]) { kept++; return; }
       const start = mark.seconds;
       const rawEnd = index + 1 < sorted.length ? sorted[index + 1].seconds : Math.min(page.duration, start + 20);
-      const end = Math.max(rawEnd, start + 1);
-      clips[mark.char] = { bvid: BV, cid: page.cid, start, end, part: episode };
+      existing.chars[mark.char] = [start, Math.max(rawEnd, start + 1)];
+      filled++;
     });
   }
 
-  const ordered = Object.fromEntries(Object.entries(clips).sort(([a], [b]) => a.codePointAt(0) - b.codePointAt(0)));
-  await writeFile(new URL("../data/videos.json", import.meta.url), JSON.stringify(ordered) + "\n");
-  console.log(`comment messages=${messages.length} episodes=${byEpisode.size} clips=${Object.keys(ordered).length} duplicate=${unused} skipped=${skipped.length}`);
+  // Keep characters ordered by code point so diffs stay readable.
+  for (const part of Object.values(source.parts)) {
+    part.chars = Object.fromEntries(Object.entries(part.chars).sort(([a], [b]) => a.codePointAt(0) - b.codePointAt(0)));
+  }
+  await writeFile(DATA, JSON.stringify(data) + "\n");
+  console.log(`messages=${messages.length} episodes=${byEpisode.size} filled=${filled} kept=${kept} skipped=${skipped.length}`);
   if (skipped.length) console.log("skipped:", JSON.stringify(skipped.slice(0, 10)));
 }
 
