@@ -19,7 +19,7 @@
 
 浏览器设置保存在 localStorage；用户导入的字体保存在 IndexedDB，不会上传到服务器。内置字体原件、处理结果、缓存、环境文件和内部文档不纳入 Git。
 
-示范视频取自 B 站「全网最全 行楷 7000 字逐字示范」，按 B 站要求经服务端代理转发（直连 CDN 会被 403）。每个字的时间点与裁切框已整理为 `data/videos.json`（默认不随仓库分发，见下）。接口返回 `no-store`，避免浏览器沿用旧片段。
+示范视频取自 B 站「全网最全 行楷 7000 字逐字示范」，按 B 站要求经服务端代理转发（直连 CDN 会被 403）。每个字的时间点与裁切框已整理为 `data/videos.json`。接口返回 `no-store`，避免浏览器沿用旧片段。
 
 ## 示范视频数据
 
@@ -35,7 +35,7 @@
 - `chars` 存该字的起止秒数；`[start, end, 1]` 表示没有逐字时间点时整集播放
 - `sources` 是有序数组，同一字出现在多个合集时靠前者优先
 
-没有这个文件时应用照常运行，只是「视频演示」按钮不可用。也可用 `LINXIE_VIDEO_DATA` 指向任意路径。容器部署时该文件由 `compose.yaml` 挂载到 `/app/data/videos.json`，镜像本身不含数据。
+该文件同时打进镜像，容器直接运行即可用。挂载同名文件可覆盖镜像内的版本（用于换上更新的标注），也可用 `LINXIE_VIDEO_DATA` 指定路径。文件缺失或损坏时应用照常运行，只是「视频演示」按钮不可用。
 
 维护这份数据用 `tools/annotate/`（裁切框 + 时间点合一的本地工具），详见 [tools/annotate/README.md](tools/annotate/README.md)。
 
@@ -77,21 +77,20 @@ tar -xzf linxie-fonts-0.1.2.tar.gz -C .
 
 解压后得到 `data/fonts/`，内含 `manifest.json` 和八组 `.json`、`.ttf`。字体包不在 GitHub 或 GHCR 中；镜像不包含字体。若修改字体挂载路径，请将宿主机路径指向解压出的 `data/fonts/`。
 
-`data/videos.json` 随仓库提供，克隆后即在同一位置。缺这个文件时部署照常可用，只是「视频演示」按钮不可用。
+示范视频数据已包含在镜像中，无需额外准备。若要用比镜像更新的标注，在 `docker-compose.yaml` 的 volumes 里取消 `videos.json` 那行的注释并指向宿主机文件。
 
-按实际情况直接修改 `docker-compose.yaml` 中的镜像、宿主机端口和三条挂载的宿主机目录，默认如下：
+按实际情况直接修改 `docker-compose.yaml` 中的镜像、宿主机端口和两条挂载的宿主机目录，默认如下：
 
 ```yaml
 image: ghcr.io/oner8/linxie:latest
 ports:
   - "127.0.0.1:3100:3000"
 volumes:
-  - ./data/videos.json:/app/data/videos.json:ro,Z
   - ./data/fonts:/app/data/fonts:ro,Z
   - ./data/cache:/app/data/cache:Z
 ```
 
-保留视频与字体挂载的 `ro` 和三条挂载的 `:Z`。字体目录需对 UID `1000` 可读、可遍历（通常目录 `755`、文件 `644`）；缓存目录由容器入口初始化，无需手动 `chown`。`:Z` 为本站独立目录设置 SELinux 标签，请使用本站专用目录。
+保留字体挂载的 `ro` 和两条挂载的 `:Z`。字体目录需对 UID `1000` 可读、可遍历（通常目录 `755`、文件 `644`）；缓存目录由容器入口初始化，无需手动 `chown`。`:Z` 为本站独立目录设置 SELinux 标签，请使用本站专用目录。
 
 配置完成后启动，无需创建 `.env`：
 

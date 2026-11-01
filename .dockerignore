@@ -1,7 +1,8 @@
 node_modules
 .next
 .git
-data
+data/*
+!data/videos.json
 dist
 docs
 tests

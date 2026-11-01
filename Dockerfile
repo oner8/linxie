@@ -23,6 +23,8 @@ COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --chown=node:node scripts ./scripts
 COPY --chown=node:node fonts/catalog.json ./fonts/catalog.json
+# Clip data ships inside the image; mounting a newer file still wins.
+COPY --chown=node:node data/videos.json ./data/videos.json
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/linxie-entrypoint.sh
 RUN mkdir -p data/fonts data/cache && chown -R node:node data .next && command -v setpriv
 USER root
