@@ -150,16 +150,25 @@ function render() {
   }
 }
 
+// The clip runs until the character written next. Measuring by write order matters:
+// marking out of sequence would otherwise cut the clip at the wrong neighbour.
+function nextEnd(page, char) {
+  const start = page.marks[char].start;
+  for (let i = page.chars.indexOf(char) + 1; i < page.chars.length; i++) {
+    const mark = page.marks[page.chars[i]];
+    if (mark) return Math.max(mark.start, start + 1);
+  }
+  return Math.max(Math.min(page.duration, start + 20), start + 1);
+}
+
 function setMark(char) {
   const page = cur;
   if (!page.crop) return flash("先标定裁切框");
   const start = +v.currentTime.toFixed(1);
-  const index = page.chars.indexOf(char);
-  const next = page.chars.slice(index + 1).map(c => page.marks[c]?.start).find(s => s > start);
-  const end = Math.max(next ?? Math.min(page.duration, start + 20), start + 1);
-  page.marks[char] = { start, end };
+  page.marks[char] = { start, end: start + 1 };
+  page.marks[char].end = nextEnd(page, char);
   render();
-  persist({ char, start, end });
+  persist({ char, ...page.marks[char] });
 }
 
 async function persist({ char, start, end }) {
