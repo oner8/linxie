@@ -264,7 +264,12 @@ export function PracticeApp() {
     fetch(`/api/videos/${encodeURIComponent(character)}`, { cache: "no-store" })
       .then(response => response.ok ? response.json().then(body => ({ available: !!body.available, duration: body.duration })) : { available: false })
       .catch(() => ({ available: false }))
-      .then(meta => { if (!cancelled) setVideoMeta(meta); });
+      .then(meta => {
+        if (cancelled) return;
+        setVideoMeta(meta);
+        // Resolve the play URL ahead of the tap; the first stream request pays that round trip.
+        if (meta.available) fetch(`/api/videos/${encodeURIComponent(character)}/stream`, { headers: { Range: "bytes=0-1" } }).catch(() => {});
+      });
     return () => { cancelled = true; };
   }, [character]);
   const playStroke = () => {

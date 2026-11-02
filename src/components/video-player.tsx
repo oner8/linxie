@@ -99,6 +99,27 @@ export function VideoPlayer({ char, run, active, onState }: {
           cleanups.push(() => window.removeEventListener("resize", fit));
         }
 
+        {
+          // Autoplay starts at the top of the part, so the first frames belong to another
+          // character. Keep the picture hidden until it actually sits on this clip.
+          let revealed = false;
+          const reveal = () => {
+            if (revealed) return;
+            revealed = true;
+            art.video.style.opacity = "1";
+          };
+          art.video.style.opacity = "0";
+          if (meta.whole) reveal();
+          else {
+            const { start } = meta;
+            art.video.addEventListener("timeupdate", () => { if (art.video.currentTime >= start - 0.3) reveal(); });
+            art.video.addEventListener("seeked", reveal);
+            // Slow networks must not leave a blank cell forever.
+            const timer = setTimeout(reveal, 4000);
+            cleanups.push(() => clearTimeout(timer));
+          }
+        }
+
         if (meta.whole) {
           // No timestamp marks for this part: play it from the start, artplayer loops.
           art.video.loop = true;
