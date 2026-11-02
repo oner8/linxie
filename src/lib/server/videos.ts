@@ -28,10 +28,6 @@ export function parseSources(data: unknown): Record<string, Clip> {
 
 // The clips ship outside the image, next to the fonts. A missing file is not fatal:
 // the practice cell works on its own, so the video button just stays disabled.
-// One switch for the whole app: with a base set, every clip is fetched from that host;
-// without it, everything goes through the proxy. Mixing the two per clip made the player
-// treat a pre-cut file as if it still started at the top of the part.
-const clipsBase = (process.env.LINXIE_CLIPS_BASE ?? "").trim().replace(/\/$/, "");
 const clipMap = (() => {
   const file = process.env.LINXIE_VIDEO_DATA ?? "data/videos.json";
   try {
@@ -55,18 +51,6 @@ export function clipFor(character: string): Clip {
   const clip = clipMap[character];
   if (!clip) throw new VideoError(404, `暂无「${character}」的示范视频`);
   return clip;
-}
-
-// Pre-cut clips are named by what they contain, so a file is shared by every character
-// that plays the same span; returns null when the app is configured to proxy instead.
-export function clipUrl(clip: Clip): string | null {
-  if (!clipsBase) return null;
-  return `${clipsBase}/${clip.cid}-${clip.start}-${clip.end}.mp4`;
-}
-
-// Whether the app serves pre-cut files rather than proxying whole parts.
-export function usingClips() {
-  return clipsBase !== "";
 }
 
 export function hasVideo(character: string) {

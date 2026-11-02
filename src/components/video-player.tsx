@@ -52,7 +52,7 @@ export function VideoPlayer({ char, run, active, onState }: {
         report.current({ phase: "loading" });
         const [module, meta] = await Promise.all([import("artplayer"), fetch(`/api/videos/${encodeURIComponent(char)}`, { signal: controller.signal, cache: "no-store" }).then(async response => {
           if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || "示范视频暂时不可用");
-          return response.json() as Promise<{ start: number; end: number; crop?: [number, number, number]; whole?: boolean; url?: string | null }>;
+          return response.json() as Promise<{ start: number; end: number; crop?: [number, number, number]; whole?: boolean }>;
         })]);
         if (cancelled || !host.current) return;
         // artplayer defaults to double-tap on touch devices; a single tap is what people expect here.
@@ -60,9 +60,7 @@ export function VideoPlayer({ char, run, active, onState }: {
         module.default.MOBILE_DBCLICK_PLAY = false;
         const art = new module.default({
           container: host.current,
-          // A pre-cut clip plays straight from its host; the proxy stays as the fallback
-          // when that host is missing the file.
-          url: meta.url ?? `/api/videos/${encodeURIComponent(char)}/stream?t=${run}`,
+          url: `/api/videos/${encodeURIComponent(char)}/stream?t=${run}`,
           type: "mp4",
           autoplay: true,
           muted: true,
@@ -82,16 +80,7 @@ export function VideoPlayer({ char, run, active, onState }: {
         player.current = art;
         art.on("video:play", () => { if (!cancelled) report.current({ phase: "playing", paused: false }); });
         art.on("video:pause", () => { if (!cancelled) report.current({ phase: "playing", paused: true }); });
-        art.on("video:error", () => {
-          if (cancelled) return;
-          // The external host may be down or missing this file; the proxy still works.
-          if (meta.url && art.video.src !== `${location.origin}/api/videos/${encodeURIComponent(char)}/stream?t=${run}`) {
-            art.video.src = `/api/videos/${encodeURIComponent(char)}/stream?t=${run}`;
-            void art.video.play().catch(() => {});
-            return;
-          }
-          report.current({ phase: "error", error: "视频加载失败，请重试" });
-        });
+        art.on("video:error", () => { if (!cancelled) report.current({ phase: "error", error: "视频加载失败，请重试" }); });
 
         if (meta.crop) {
           const crop = meta.crop;
@@ -110,10 +99,6 @@ export function VideoPlayer({ char, run, active, onState }: {
           cleanups.push(() => window.removeEventListener("resize", fit));
         }
 
-        // A pre-cut file already starts at the character; a proxied stream still begins at
-        // the top of the part and has to be seeked. Getting this backwards plays the file
-        // from a second past its own end, which loops every frame.
-        const preCut = Boolean(meta.url);
         {
           // Autoplay starts at the top of the part, so the first frames belong to another
           // character. Keep the picture hidden until it actually sits on this clip.
@@ -124,7 +109,7 @@ export function VideoPlayer({ char, run, active, onState }: {
             art.video.style.opacity = "1";
           };
           art.video.style.opacity = "0";
-          if (preCut || meta.whole) reveal();
+          if (meta.whole) reveal();
           else {
             const { start } = meta;
             art.video.addEventListener("timeupdate", () => { if (art.video.currentTime >= start - 0.3) reveal(); });
@@ -137,9 +122,6 @@ export function VideoPlayer({ char, run, active, onState }: {
 
         if (meta.whole) {
           // No timestamp marks for this part: play it from the start, artplayer loops.
-          art.video.loop = true;
-        } else if (preCut) {
-          // The file holds exactly this clip, so its own end is the wrap point.
           art.video.loop = true;
         } else {
           const { start, end } = meta;

@@ -13,8 +13,6 @@ services:
     environment:
       TRUST_PROXY: "1"
       BILIBILI_SESSDATA: ${BILIBILI_SESSDATA:-}
-      # Set to serve pre-cut clips from your own host; empty proxies Bilibili instead.
-      LINXIE_CLIPS_BASE: ${LINXIE_CLIPS_BASE:-}
     volumes:
       # - ${LINXIE_VIDEO_DATA:-./data/videos.json}:/app/data/videos.json:ro,Z
       - ${LINXIE_FONT_DIR:-./data/fonts}:/app/data/fonts:ro,Z

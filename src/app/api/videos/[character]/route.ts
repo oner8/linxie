@@ -1,5 +1,5 @@
 import { validateText } from "@/lib/practice";
-import { clipFor, clipUrl, hasVideo } from "@/lib/server/videos";
+import { clipFor, hasVideo } from "@/lib/server/videos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cha
   if (!hasVideo(character)) return Response.json({ available: false }, { headers: NO_STORE });
   const clip = clipFor(character);
   return Response.json(
-    { available: true, start: clip.start, end: clip.end, duration: clip.end - clip.start, crop: [clip.cx, clip.cy, clip.half], whole: !!clip.whole, url: clipUrl(clip) },
+    { available: true, start: clip.start, end: clip.end, duration: clip.end - clip.start, crop: [clip.cx, clip.cy, clip.half], whole: !!clip.whole },
     { headers: NO_STORE },
   );
 }
