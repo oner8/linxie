@@ -94,8 +94,8 @@
 /* The player centres the frame with object-fit until the crop maths takes over. */
 .video-player.is-wide video { object-fit: cover; object-position: center; }
 .video-player .art-video-player .art-bottom, .video-player .art-video-player .art-mask, .video-player .art-video-player.art-notice-show .art-notice { display: none; }
-/* Default is white, which disappears against the paper. */
-.video-player .art-loading .art-icon { color: var(--primary); }
+/* The spinner is a set of SVG bars filled white, which vanishes on the paper. */
+.video-player .art-loading .art-icon svg rect:not(.bk) { fill: var(--primary); }
 .all-glyphs { touch-action: pan-y pinch-zoom; flex-direction: column; gap: 10px; overflow: auto; }
 .all-character { width: min(100cqw, max(96px, (100cqh - (var(--count) - 1) * 10px) / var(--count))); height: min(100cqw, max(96px, (100cqh - (var(--count) - 1) * 10px) / var(--count))); background: 0 0; border: 0; flex: none; padding: 0; display: block; }
 .all-character .practice-cell { width: 100%; height: 100%; }
