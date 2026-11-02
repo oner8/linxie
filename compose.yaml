@@ -11,6 +11,8 @@ services:
       TRUST_PROXY: "1"
       # Optional: raises the demonstration-video quality ceiling above 480p.
       BILIBILI_SESSDATA: ${BILIBILI_SESSDATA:-}
+      # Set to serve pre-cut clips from your own host; empty proxies Bilibili instead.
+      LINXIE_CLIPS_BASE: ${LINXIE_CLIPS_BASE:-}
     volumes:
       # Optional: a newer data file than the one baked into the image.
       # - ${LINXIE_VIDEO_DATA:-./data/videos.json}:/app/data/videos.json:ro,Z
