@@ -161,23 +161,35 @@ function nextEnd(page, char) {
   return Math.max(Math.min(page.duration, start + 20), start + 1);
 }
 
+// Marking the next character closes the previous one. Without this, the character marked
+// last would keep its fallback end and run on into its neighbour on every play.
 function setMark(char) {
   const page = cur;
   if (!page.crop) return flash("先标定裁切框");
   const start = +v.currentTime.toFixed(1);
   page.marks[char] = { start, end: start + 1 };
   page.marks[char].end = nextEnd(page, char);
+
+  // The character written just before this one now ends where this one starts.
+  const touched = [char];
+  for (let i = page.chars.indexOf(char) - 1; i >= 0; i--) {
+    const prev = page.marks[page.chars[i]];
+    if (!prev) continue;
+    const end = Math.max(start, prev.start + 1);
+    if (Math.abs(prev.end - end) > 0.05) { prev.end = end; touched.push(page.chars[i]); }
+    break;
+  }
+
   render();
-  persist({ char, ...page.marks[char] });
+  persist(touched.map(c => ({ char: c, ...page.marks[c] })));
 }
 
-async function persist({ char, start, end }) {
+// Accepts a list so one click can save a character and the neighbour it just closed.
+async function persist(marks) {
   const body = {
     page: cur.page,
     crop: cur.crop,
-    marks: char
-      ? [{ char, start, end }]
-      : cur.chars.filter(c => cur.marks[c]).map(c => ({ char: c, ...cur.marks[c] })),
+    marks: marks ?? cur.chars.filter(c => cur.marks[c]).map(c => ({ char: c, ...cur.marks[c] })),
   };
   const res = await fetch("/api/save", { method: "POST", body: JSON.stringify(body) });
   flash(res.ok ? "已保存" : "保存失败");
@@ -216,7 +228,7 @@ v.addEventListener("click", e => {
   markers.innerHTML = "";
   drawCrop();
   render();
-  persist({});
+  persist();
 });
 
 document.getElementById("resetCrop").onclick = () => {
@@ -280,13 +292,13 @@ document.getElementById("undo").onclick = () => {
   if (!last) return;
   delete cur.marks[last];
   render();
-  persist({});
+  persist();
 };
 
 document.getElementById("clear").onclick = () => {
   cur.marks = {};
   render();
-  persist({});
+  persist();
 };
 
 document.getElementById("whole").onclick = () => {

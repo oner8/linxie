@@ -17,3 +17,4 @@ fonts/*.otf
 fonts/*.woff*
 __pycache__/
 .venv/
+clips/
