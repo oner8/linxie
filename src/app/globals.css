@@ -119,7 +119,7 @@
 .stroke-progress::-webkit-progress-bar { background: var(--muted); }
 .stroke-progress::-webkit-progress-value { background: var(--primary); }
 .stroke-progress::-moz-progress-bar { background: var(--primary); }
-.toolbar { background: var(--card); border: 1px solid var(--border); border-radius: 13px; padding: 5px; flex-shrink: 0; grid-template-columns: repeat(4,1fr); gap: 4px; margin: 2px 0 max(10px, env(safe-area-inset-bottom)); display: grid; }
+.toolbar { background: var(--card); border: 1px solid var(--border); border-radius: 13px; padding: 5px; flex-shrink: 0; grid-template-columns: repeat(5,1fr); gap: 2px; margin: 2px 0 max(10px, env(safe-area-inset-bottom)); display: grid; }
 .toolbar [data-slot=button] { height: 52px; color: var(--muted-foreground); flex-direction: column; gap: 3px; font-size: 11px; }
 .toolbar [data-slot=button] svg { width: 21px; height: 21px; }
 .toolbar [data-slot=button]:hover { color: var(--primary); }
@@ -227,4 +227,36 @@
 }
 @media (prefers-reduced-motion:reduce) {
   *,:before,:after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
+
+/* 生字本 */
+.history { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px; }
+.history-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.history-title { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; color: var(--muted-foreground); }
+.history-title svg { width: 14px; height: 14px; }
+.history-title span { background: var(--muted); border-radius: 999px; padding: 0 7px; font-size: 11px; }
+.history-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.history-entry { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; border: 1px solid var(--border); background: var(--card); border-radius: 10px; padding: 6px 12px 5px; cursor: pointer; color: inherit; font: inherit; }
+.history-entry:hover:not(:disabled) { border-color: var(--primary); }
+.history-entry:disabled { opacity: .55; cursor: not-allowed; }
+.history-text { font-size: 17px; letter-spacing: 1px; line-height: 1.3; }
+.history-meta { font-size: 11px; color: var(--muted-foreground); }
+
+/* 打印：屏幕外不占位，打印时只留字帖 */
+.print-sheet { display: none; }
+@media print {
+  /* 边距交给页面内的留白，浏览器自带的页眉页脚因此没有空间可画 */
+  @page { size: A4 portrait; margin: 0; }
+  /* 屏幕布局的固定高度与弹性区会把字帖挤到页底，打印时全部让位 */
+  html, body { background: #fff !important; height: auto !important; }
+  .app-shell { display: block !important; height: auto !important; min-height: 0 !important; max-width: none !important;
+    padding: 0 !important; gap: 0 !important; border: 0 !important; background: #fff !important; }
+  .app-shell > *:not(.print-sheet) { display: none !important; }
+  /* 留白放在页面内部，@page 边距为 0 时浏览器不会画页眉页脚 */
+  .print-sheet { display: flex; flex-direction: column; justify-content: center; /* border-box：min-height 已含内边距，写成整页高度才会真正竖直居中 */
+    min-height: 297mm; padding: 18mm 22mm; }
+  /* 一行一个字，一个格子；格子够大又不至于一页放不下三个 */
+  .print-grid { display: grid; grid-template-columns: 1fr; gap: 5mm; justify-items: center; }
+  .print-group { break-inside: avoid; width: min(var(--print-cell, 82mm), 100%); }
+  .print-group .practice-cell { width: 100%; height: auto; aspect-ratio: 1; display: block; }
 }

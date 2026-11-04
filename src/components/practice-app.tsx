@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "cn";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Expand, Grid2X2, LoaderCircle, Minimize2, Pause, PencilLine, Play, RotateCcw, SlidersHorizontal, Sun, Trash2, Type, Upload, Video, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Clock, Expand, Grid2X2, LoaderCircle, Minimize2, Pause, PencilLine, Play, Printer, RotateCcw, SlidersHorizontal, Sun, Trash2, Type, Upload, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
@@ -16,11 +16,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PracticeCell, GridLines } from "./practice-cell";
 import { StrokeAnimation, type StrokeProgress } from "./stroke-animation";
+import { PrintSheet } from "./print-sheet";
 import { VideoPlayer, type VideoState } from "./video-player";
 import { COLOR_PALETTE, DEFAULTS, GRIDS, STORAGE_KEY, THEMES, restoreSettings, swipeStep, validateText, type PublicFont, type Settings } from "@/lib/practice";
 import { forgetLocalFont, loadPracticeFont, LoadError } from "@/lib/browser-fonts";
 import { deleteLocalFont, inspectLocalFont, migrateLocalData, readLocalFonts, saveLocalFont, type LocalFont } from "@/lib/local-fonts";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { formatWhen, readHistory, recordPractice, writeHistory, type HistoryEntry } from "@/lib/history";
 
 type Panel = "text" | "fonts" | "grids" | "settings";
 type Display = { text: string; fontId: string; name: string; family: string };
@@ -56,6 +58,8 @@ export function PracticeApp() {
   const [strokePaused, setStrokePaused] = useState(false);
   const [strokeProgress, setStrokeProgress] = useState<StrokeProgress>({ phase: "idle", stroke: 0, total: 0 });
   const strokeSequence = useRef(0);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [printing, setPrinting] = useState(false);
   const [videoRun, setVideoRun] = useState(0);
   const [videoState, setVideoState] = useState<VideoState>({ phase: "idle" });
   const [videoMeta, setVideoMeta] = useState<{ available: boolean; duration?: number } | null>(null);
@@ -127,6 +131,7 @@ export function PracticeApp() {
         return;
       }
       if (cancelled) return;
+      setHistory(readHistory());
       let saved = { ...DEFAULTS };
       try { saved = restoreSettings(JSON.parse(localStorage.getItem(STORAGE_KEY) || "null")); }
       catch { setNotice("无法读取上次设置，本次使用默认设置"); }
@@ -207,12 +212,28 @@ export function PracticeApp() {
     if (panel === "text" && loading) { request.current.controller?.abort(); request.current.sequence++; setLoading(null); }
     setPanel(null);
   };
+  // Reopening a past entry keeps whatever font is loaded now; a missing one falls back.
+  const openHistory = async (entry: HistoryEntry) => {
+    if (loading || cooldown) return;
+    const font = [...fonts, ...localFonts].find(f => f.id === settings.fontId) || fonts[0];
+    if (!font) return;
+    const text = entry.text;
+    setDraft(text);
+    if (await load(font, text)) setPanel(null);
+  };
+  const clearHistory = () => { writeHistory([]); setHistory([]); setNotice("已清空生字本"); };
+  const print = () => {
+    // The sheet only exists while printing, so the dialog opens after it has rendered.
+    setPrinting(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => { window.print(); setPrinting(false); }));
+  };
   const submitText = async () => {
     if (composing || cooldown || loading) return;
     try {
       const text = validateText(draft);
       const font = [...fonts, ...localFonts].find(f => f.id === settings.fontId);
-      if (font && await load(font, text)) setPanel(null);
+      // The history tracks what was actually practiced, not every font reload.
+      if (font && await load(font, text)) { setHistory(recordPractice(text, font.id)); setPanel(null); }
     } catch (e) { retry.current = null; setError((e as Error).message); }
   };
   const importFont = async (file: Blob, name: string) => {
@@ -300,7 +321,7 @@ export function PracticeApp() {
   </>;
 
   return <>
-    <main className={cn("app-shell", focus && "is-focused", panel && "has-panel")}>
+    <main className={cn("app-shell", focus && "is-focused", panel && "has-panel", printing && "is-printing")}>
       <header className="app-header">
         <div className="brand"><h1>临写</h1></div>
         <Button variant="ghost" className="focus-button" onClick={() => setFocus(f => !f)} aria-label={focus ? "退出专注" : "进入专注"}>{focus ? <Minimize2 data-icon="inline-start" /> : <Expand data-icon="inline-start" />}{focus ? "退出专注" : "专注"}</Button>
@@ -344,8 +365,12 @@ export function PracticeApp() {
           {focus && settings.wake && <p className="wake-status" role="status"><Sun aria-hidden="true" />{wake === "on" ? "屏幕保持常亮" : wake === "unsupported" ? "当前浏览器不支持常亮，请调整系统设置" : wake === "failed" ? "未能开启常亮，请调整系统设置" : "专注临写"}</p>}
         </div>}
       </section>
-      {!focus && !panel && <footer className="toolbar" aria-label="临写工具">{([{ id: "text", name: "文字", icon: Type }, { id: "fonts", name: "字体", icon: PencilLine }, { id: "grids", name: "格形", icon: Grid2X2 }, { id: "settings", name: "设置", icon: SlidersHorizontal }] as const).map(item => <Button key={item.id} variant="ghost" aria-haspopup="dialog" onClick={e => openPanel(item.id, e.currentTarget)} disabled={!ready}><item.icon /><span>{item.name}</span></Button>)}</footer>}
+      {!focus && !panel && <footer className="toolbar" aria-label="临写工具">{([{ id: "text", name: "文字", icon: Type }, { id: "fonts", name: "字体", icon: PencilLine }, { id: "grids", name: "格形", icon: Grid2X2 }, { id: "print", name: "打印", icon: Printer }, { id: "settings", name: "设置", icon: SlidersHorizontal }] as const).map(item => item.id === "print"
+        ? <Button key={item.id} variant="ghost" onClick={print} disabled={!display || !!loading} aria-label="打印字帖"><Printer /><span>打印</span></Button>
+        : <Button key={item.id} variant="ghost" aria-haspopup="dialog" onClick={e => openPanel(item.id as Panel, e.currentTarget)} disabled={!ready}><item.icon /><span>{item.name}</span></Button>)}</footer>}
     </main>
+
+    {printing && <PrintSheet chars={chars} family={display?.family} grid={settings.grid} size={settings.size} opacity={settings.opacity} lineColor={settings.lineColor} textColor={settings.textColor} />}
 
     <Drawer open={!!panel} onOpenChange={open => !open && closePanel()} shouldScaleBackground={false} repositionInputs={false} autoFocus>
       <DrawerContent ref={measureDrawer} className="practice-drawer" data-panel={panel || undefined} aria-describedby={undefined} onOpenAutoFocus={e => { if (panel === "text") { e.preventDefault(); input.current?.focus({ preventScroll: true }); input.current?.select(); } }} onCloseAutoFocus={e => { e.preventDefault(); trigger.current?.focus(); }}>
@@ -353,6 +378,15 @@ export function PracticeApp() {
         <div className="panel-scroll" data-vaul-no-drag>
           <div className="feedback-stack">{feedback}</div>
           {panel === "text" && <form onSubmit={e => { e.preventDefault(); void submitText(); }}><FieldGroup className="text-fields"><Field data-invalid={!!draftError}><FieldLabel htmlFor="practice-input">练习的汉字</FieldLabel><Input ref={input} id="practice-input" className="practice-input" value={draft} placeholder="例如：永和安" autoComplete="off" spellCheck={false} aria-invalid={!!draftError} aria-describedby={draftError ? "input-error" : "input-description"} onChange={e => setDraft(e.target.value)} onCompositionStart={() => setComposing(true)} onCompositionEnd={e => { setDraft(e.currentTarget.value); setComposing(false); }} onKeyDown={e => { if (e.key === "Enter" && (composing || e.nativeEvent.isComposing)) e.preventDefault(); }} /><div className="input-meta"><FieldDescription id="input-description">输入 1–3 个汉字</FieldDescription><span>{[...draft.trim()].length} / 3</span></div>{draftError && <FieldError id="input-error">{draftError}</FieldError>}</Field><div className="text-actions"><Button type="button" variant="outline" onClick={closePanel}>取消编辑</Button><Button type="submit" disabled={!!draftError || !draft.trim() || composing || !!loading || cooldown > 0}>{loading && <LoaderCircle className="spin" data-icon="inline-start" />}开始临写</Button></div></FieldGroup></form>}
+          {panel === "text" && !!history.length && <section className="history" aria-label="生字本">
+            <div className="history-head"><p className="history-title"><Clock aria-hidden="true" />生字本<span>{history.length}</span></p><Button variant="ghost" size="sm" onClick={clearHistory}>清空</Button></div>
+            <ul className="history-list">{history.slice(0, 12).map(entry => <li key={entry.text}>
+              <button type="button" className="history-entry" aria-label={`练「${entry.text}」`} disabled={!!loading || cooldown > 0} onClick={() => void openHistory(entry)}>
+                <span className="history-text">{entry.text}</span>
+                <span className="history-meta">{formatWhen(entry.at)}{entry.count > 1 ? ` · ${entry.count} 次` : ""}</span>
+              </button>
+            </li>)}</ul>
+          </section>}
           {panel === "fonts" && <Tabs value={fontTab} onValueChange={setFontTab}><TabsList className="w-full"><TabsTrigger value="builtin">内置字体 · {fonts.length}</TabsTrigger><TabsTrigger value="local">本机字体</TabsTrigger></TabsList><TabsContent value="builtin"><div className="font-list">{fonts.map(font => <Button key={font.id} variant={settings.fontId === font.id ? "secondary" : "ghost"} aria-pressed={settings.fontId === font.id} className="font-option" aria-label={font.name} onClick={() => { if (!cooldown) void load(font, settings.text); }} disabled={cooldown > 0}><FontLabel name={font.name} style={font.style} />{loading?.name === font.name ? <LoaderCircle className="spin" /> : settings.fontId === font.id ? <Check /> : null}</Button>)}</div></TabsContent><TabsContent value="local">
             <div className="font-list">{localFonts.map(font => <div className="local-font-row" key={font.id}><Button variant={settings.fontId === font.id ? "secondary" : "ghost"} aria-pressed={settings.fontId === font.id} className="font-option" aria-label={font.name} onClick={() => void load(font, settings.text)}><span className="min-w-0"><FontLabel name={font.name} /><small>{(font.size / 1024 / 1024).toFixed(1)} MiB · {font.saved ? "已保存在本机" : "本次临时使用"}</small></span>{settings.fontId === font.id && <Check />}</Button><AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" aria-label={`删除${font.name}`}><Trash2 /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>删除这款本机字体？</AlertDialogTitle><AlertDialogDescription>从当前浏览器移除「{font.name}」。如果正在使用，将先切换到田英章楷书；原始文件不会被删除。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>保留</AlertDialogCancel><AlertDialogAction onClick={() => void removeFont(font)}>删除字体</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div>)}</div>
             {!localFonts.length && <p className="local-empty">把你喜欢的字体带进来。<br />导入后，仅在这台设备上使用。</p>}

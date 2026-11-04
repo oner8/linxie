@@ -16,7 +16,7 @@ export function GridLines({ grid, opacity = 0.45, color = "var(--grid-line)" }: 
 
 let measurer: CanvasRenderingContext2D | null = null;
 
-export function PracticeCell({ char, family, size, opacity, grid, lineColor, textColor, hideCharacter }: { char?: string; family?: string; size: number; opacity: number; grid: GridId; lineColor: string; textColor: string; hideCharacter?: boolean }) {
+export function PracticeCell({ char, family, size, opacity, grid, lineColor, textColor, hideCharacter, charOpacity }: { char?: string; family?: string; size: number; opacity: number; grid: GridId; lineColor: string; textColor: string; hideCharacter?: boolean; charOpacity?: number }) {
   const metrics = useMemo(() => {
     if (!family || !char || typeof document === "undefined") return null;
     // One canvas for the whole page: browsers cap how many can exist.
@@ -30,6 +30,6 @@ export function PracticeCell({ char, family, size, opacity, grid, lineColor, tex
   return <svg className="practice-cell" viewBox="0 0 1000 1000" role="img" aria-label={char ? `${char}，${GRIDS.find(g => g.id === grid)!.name}` : "等待字体加载"} aria-hidden={hideCharacter || undefined} data-testid="practice-cell">
     <rect width="1000" height="1000" fill="var(--card)" />
     <GridLines grid={grid} opacity={opacity / 100} color={lineColor} />
-    {metrics && !hideCharacter && <text x={500 - (metrics.actualBoundingBoxRight - metrics.actualBoundingBoxLeft) * scale / 2} y={500 + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) * scale / 2} fontFamily={family} fontSize={1000 * scale} fill={textColor} style={{ fontSynthesis: "none", textRendering: "geometricPrecision" }}>{char}</text>}
+    {metrics && !hideCharacter && <text x={500 - (metrics.actualBoundingBoxRight - metrics.actualBoundingBoxLeft) * scale / 2} y={500 + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) * scale / 2} fontFamily={family} fontSize={1000 * scale} fill={textColor} fillOpacity={charOpacity ?? 1} style={{ fontSynthesis: "none", textRendering: "geometricPrecision" }}>{char}</text>}
   </svg>;
 }
